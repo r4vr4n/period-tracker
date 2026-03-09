@@ -73,7 +73,7 @@ export default function PeriodDurationChart({ cycles }: Props) {
                 borderRadius: '12px',
                 color: '#fff',
               }}
-              formatter={(value: number) => [`${value} days`, 'Duration']}
+              formatter={(value: any) => [`${value} days`, 'Duration']}
             />
             <Bar dataKey="duration" radius={[6, 6, 0, 0]}>
               {data.map((_, index) => (

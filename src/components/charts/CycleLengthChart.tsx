@@ -83,7 +83,7 @@ export default function CycleLengthChart({ cycles }: Props) {
                 borderRadius: '12px',
                 color: '#fff',
               }}
-              formatter={(value: number) => [`${value} days`, 'Cycle Length']}
+              formatter={(value: any) => [`${value} days`, 'Cycle Length']}
             />
             <ReferenceLine
               y={average}
