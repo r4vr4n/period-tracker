@@ -42,9 +42,23 @@ export default function Dashboard() {
   const handlePeriodEnd = async (date: string) => {
     const ongoing = cycles.find((c) => !c.endDate);
     if (ongoing) {
+      if (new Date(date) <= new Date(ongoing.startDate)) {
+        console.error('End date must be after start date');
+        return;
+      }
       await updateCycleEntry(ongoing.id, { endDate: date });
       await loadCycles();
     }
+  };
+
+  const handleCompletePeriod = async (startDate: string, endDate: string) => {
+    if (new Date(startDate) >= new Date(endDate)) {
+      // For now, just log an error; in a real app, show a user-friendly message
+      console.error('End date must be after start date');
+      return;
+    }
+    await saveCycleEntry({ startDate, endDate });
+    await loadCycles();
   };
 
   const handleDelete = async (entryId: string) => {
@@ -78,6 +92,7 @@ export default function Dashboard() {
         <div className="header-left">
           <div className="header-logo">
             <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <title>Flo Cycle Logo</title>
               <path
                 d="M16 4C11 4 8 8 8 13C8 18 11 23 16 28C21 23 24 18 24 13C24 8 21 4 16 4Z"
                 fill="url(#hdr-grad)"
@@ -102,6 +117,7 @@ export default function Dashboard() {
             <QuickLog
               onLogPeriodStart={handlePeriodStart}
               onLogPeriodEnd={handlePeriodEnd}
+              onLogCompletePeriod={handleCompletePeriod}
               hasOngoingPeriod={hasOngoingPeriod}
             />
             {metrics && <MetricsCards metrics={metrics} />}
@@ -149,6 +165,7 @@ export default function Dashboard() {
       <nav className="bottom-nav">
         {tabs.map((tab) => (
           <button
+            type="button"
             key={tab.key}
             className={`nav-item ${activeTab === tab.key ? 'active' : ''}`}
             onClick={() => setActiveTab(tab.key)}
