@@ -52,6 +52,7 @@ export default function CycleHistory({ cycles, onDelete }: Props) {
                 )}
               </div>
               <button
+                type="button"
                 className="btn btn-icon-delete"
                 onClick={() => onDelete(cycle.id)}
                 title="Delete entry"

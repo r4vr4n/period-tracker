@@ -1,5 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getCycleHistory, saveCycleEntry, updateCycleEntry, deleteCycleEntry } from '../../storage/db';
+import {
+  getCycleHistory,
+  deleteCycleEntry,
+  saveCompletePeriod,
+  getUserProfile,
+  type UserProfile
+} from '../../storage/db';
 import { useCyclePredictor } from '../../hooks/useCyclePredictor';
 import CycleStatus from './CycleStatus';
 import QuickLog from './QuickLog';
@@ -9,64 +15,46 @@ import PeriodDurationChart from '../charts/PeriodDurationChart';
 import PredictionCalendar from '../charts/PredictionCalendar';
 import CycleHistory from '../history/CycleHistory';
 import Settings from '../settings/Settings';
+import Onboarding from '../onboarding/Onboarding';
 import type { CycleEntry } from '../../types/cycle';
 
 type Tab = 'dashboard' | 'calendar' | 'charts' | 'history' | 'settings';
 
 export default function Dashboard() {
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [cycles, setCycles] = useState<CycleEntry[]>([]);
-  const [loadingData, setLoadingData] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const { metrics, isCalculating } = useCyclePredictor(cycles);
 
-  const loadCycles = useCallback(async () => {
+  const loadData = useCallback(async () => {
     try {
-      const data = await getCycleHistory();
-      setCycles(data);
+      const [userProfile, history] = await Promise.all([
+        getUserProfile(),
+        getCycleHistory()
+      ]);
+      setProfile(userProfile);
+      setCycles(history);
     } catch (err) {
-      console.error('Failed to load cycles:', err);
+      console.error('Failed to load data:', err);
     } finally {
-      setLoadingData(false);
+      setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadCycles();
-  }, [loadCycles]);
+    loadData();
+  }, [loadData]);
 
-  const handlePeriodStart = async (date: string) => {
-    await saveCycleEntry({ startDate: date, endDate: null });
-    await loadCycles();
-  };
-
-  const handlePeriodEnd = async (date: string) => {
-    const ongoing = cycles.find((c) => !c.endDate);
-    if (ongoing) {
-      if (new Date(date) <= new Date(ongoing.startDate)) {
-        console.error('End date must be after start date');
-        return;
-      }
-      await updateCycleEntry(ongoing.id, { endDate: date });
-      await loadCycles();
-    }
-  };
-
-  const handleCompletePeriod = async (startDate: string, endDate: string) => {
-    if (new Date(startDate) >= new Date(endDate)) {
-      // For now, just log an error; in a real app, show a user-friendly message
-      console.error('End date must be after start date');
-      return;
-    }
-    await saveCycleEntry({ startDate, endDate });
-    await loadCycles();
+  const handlePeriodComplete = async (startDate: string, endDate: string) => {
+    await saveCompletePeriod(startDate, endDate);
+    await loadData();
   };
 
   const handleDelete = async (entryId: string) => {
     await deleteCycleEntry(entryId);
-    await loadCycles();
+    await loadData();
   };
-
-  const hasOngoingPeriod = cycles.some((c) => !c.endDate);
 
   const tabs: { key: Tab; label: string; icon: string }[] = [
     { key: 'dashboard', label: 'Home', icon: '🏠' },
@@ -76,13 +64,17 @@ export default function Dashboard() {
     { key: 'settings', label: 'Settings', icon: '⚙️' },
   ];
 
-  if (loadingData) {
+  if (loading) {
     return (
       <div className="loading-screen">
         <div className="loading-spinner" />
         <p>Loading your data...</p>
       </div>
     );
+  }
+
+  if (!profile) {
+    return <Onboarding onComplete={(p) => setProfile(p)} />;
   }
 
   return (
@@ -105,7 +97,10 @@ export default function Dashboard() {
               </defs>
             </svg>
           </div>
-          <h2>Flo Cycle</h2>
+          <div className="header-titles">
+            <h2>Flo Cycle</h2>
+            <span className="user-greeting">Hi, {profile.name}</span>
+          </div>
         </div>
       </header>
 
@@ -115,10 +110,7 @@ export default function Dashboard() {
           <div className="dashboard-view">
             {metrics && <CycleStatus metrics={metrics} />}
             <QuickLog
-              onLogPeriodStart={handlePeriodStart}
-              onLogPeriodEnd={handlePeriodEnd}
-              onLogCompletePeriod={handleCompletePeriod}
-              hasOngoingPeriod={hasOngoingPeriod}
+              onLogCompletePeriod={handlePeriodComplete}
             />
             {metrics && <MetricsCards metrics={metrics} />}
           </div>
@@ -149,7 +141,7 @@ export default function Dashboard() {
 
         {activeTab === 'settings' && (
           <div className="settings-view">
-            <Settings onDataChanged={loadCycles} />
+            <Settings onDataChanged={loadData} />
           </div>
         )}
 

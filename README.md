@@ -12,7 +12,7 @@ A modern, privacy-focused menstrual cycle tracker built with a premium dark-mode
 - 📊 **Smart Predictions**: Uses a dedicated **Web Worker** to calculate cycle regularity, average lengths, and predict future periods without slowing down the UI.
 - 📅 **Interactive Calendar**: Visualize past periods, fertile windows, and ovulation days at a glance.
 - 📈 **Data Visualization**: Beautiful Recharts-powered Area and Bar charts showing cycle length trends and period durations.
-- 📤 **Data Portability**: Full support for exporting your data to a JSON backup and importing it back later.
+- 📤 **P2P Sync**: Directly transfer your data between devices via WebRTC. **No cloud servers involved.**
 - 🩸 **Quick Log**: One-tap logging for period start and end dates.
 - 🎨 **Premium UI**: Glassmorphism design with smooth micro-animations and a sleek dark theme.
 
@@ -36,7 +36,7 @@ src/
 │   ├── settings/     # Import/Export/Clear data tools
 │   └── ui/           # Reusable UI elements
 ├── hooks/            # useCyclePredictor (Web Worker interface)
-├── storage/          # db.ts (IndexedDB implementation)
+├── storage/          # db.ts (IndexedDB) & peerService.ts (WebRTC Sync)
 ├── types/            # TypeScript interfaces
 ├── workers/          # cyclePredictor.worker.ts (Prediction logic)
 ├── App.tsx           # Main component (No-Auth Single Page)
@@ -75,10 +75,10 @@ src/
 
 ## 🛡️ Privacy & Security
 
-Flo Cycle is designed to be a "Local-First" application. Unlike most period trackers, we do not have a backend server.
-- **No Analytics**: We don't track your usage.
-- **No Sync**: Your data stays on your device.
-- **Total Control**: You can delete all your data at any time from the Settings tab.
+Flo Cycle is 100% "Local-Only". 
+- **No Cloud**: We don't have a database or a server.
+- **P2P Transfers**: When you sync between devices, the data moves directly from browser to browser.
+- **No Analytics**: We don't track you. Period.
 
 ---
 Built with ❤️ by [r4vr4n](https://github.com/r4vr4n)

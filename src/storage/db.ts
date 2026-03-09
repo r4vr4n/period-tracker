@@ -1,8 +1,21 @@
 import type { CycleEntry } from '../types/cycle';
 
 const DB_NAME = 'flo_cycle_db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAME = 'cycles';
+const PROFILE_STORE = 'profile';
+
+export interface UserProfile {
+  name: string;
+  syncId: string;
+  createdAt: number;
+}
+
+export interface SyncPayload {
+  profile: UserProfile;
+  history: CycleEntry[];
+  timestamp: number;
+}
 
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -14,6 +27,9 @@ function openDB(): Promise<IDBDatabase> {
         store.createIndex('startDate', 'startDate', { unique: false });
         store.createIndex('createdAt', 'createdAt', { unique: false });
       }
+      if (!db.objectStoreNames.contains(PROFILE_STORE)) {
+        db.createObjectStore(PROFILE_STORE, { keyPath: 'id' });
+      }
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
@@ -23,6 +39,39 @@ function openDB(): Promise<IDBDatabase> {
 function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
+
+export function generateSyncCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // No confusing chars
+  let res = '';
+  for (let i = 0; i < 5; i++) {
+    res += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return res;
+}
+
+/* ---- User Profile ---- */
+
+export async function getUserProfile(): Promise<UserProfile | null> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(PROFILE_STORE, 'readonly');
+    const req = tx.objectStore(PROFILE_STORE).get('user');
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+export async function setUserProfile(profile: UserProfile): Promise<void> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(PROFILE_STORE, 'readwrite');
+    tx.objectStore(PROFILE_STORE).put({ ...profile, id: 'user' });
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+/* ---- Cycle Entries ---- */
 
 export async function saveCycleEntry(
   entry: Omit<CycleEntry, 'id' | 'userId' | 'createdAt'>
@@ -34,6 +83,24 @@ export async function saveCycleEntry(
     userId: 'local',
     startDate: entry.startDate,
     endDate: entry.endDate ?? null,
+    createdAt: Date.now(),
+  };
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    tx.objectStore(STORE_NAME).put(record);
+    tx.oncomplete = () => resolve(id);
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+export async function saveCompletePeriod(startDate: string, endDate: string): Promise<string> {
+  const db = await openDB();
+  const id = generateId();
+  const record: CycleEntry = {
+    id,
+    userId: 'local',
+    startDate,
+    endDate,
     createdAt: Date.now(),
   };
   return new Promise((resolve, reject) => {
@@ -88,7 +155,40 @@ export async function deleteCycleEntry(entryId: string): Promise<void> {
   });
 }
 
-/* ---- Import / Export ---- */
+/* ---- P2P Sync Helpers ---- */
+
+export async function prepareSyncPayload(): Promise<SyncPayload> {
+  const profile = await getUserProfile();
+  if (!profile) throw new Error('No profile to sync');
+  const history = await getCycleHistory();
+  return {
+    profile,
+    history,
+    timestamp: Date.now(),
+  };
+}
+
+export async function applySyncPayload(payload: SyncPayload): Promise<void> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction([STORE_NAME, PROFILE_STORE], 'readwrite');
+
+    // Save profile
+    tx.objectStore(PROFILE_STORE).put({ ...payload.profile, id: 'user' });
+
+    // Save history
+    const store = tx.objectStore(STORE_NAME);
+    store.clear();
+    for (const entry of payload.history) {
+      store.put(entry);
+    }
+
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+/* ---- Export / Import ---- */
 
 export async function exportData(): Promise<string> {
   const entries = await getCycleHistory();
