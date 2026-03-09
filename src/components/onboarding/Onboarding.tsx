@@ -99,24 +99,9 @@ export default function Onboarding({ onComplete }: Props) {
 
         <p className="onboarding-note">
           Your data is stored locally in this browser. You'll get a unique Sync
-         
-							disabled={isSubmitting}
-						/>
-					</div>
-					<button
-						type="submit"
-						className="btn btn-primary"
-						disabled={isSubmitting || !name.trim()}
-					>
-						{isSubmitting ? "Setting up..." : "Get Started"}
-					</button>
-				</form>
-
-				<p className="onboarding-note">
-					Your data is stored locally in this browser. You'll get a unique Sync
-					ID to connect other devices.
-				</p>
-			</div>
-		</div>
-	);
+          ID to connect other devices.
+        </p>
+      </div>
+    </div>
+  );
 }
