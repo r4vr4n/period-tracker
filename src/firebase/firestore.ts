@@ -1,58 +1,63 @@
-import {
-  collection,
-  addDoc,
-  getDocs,
-  deleteDoc,
-  doc,
-  updateDoc,
-  query,
-  orderBy,
-  serverTimestamp,
-} from 'firebase/firestore';
-import { db } from './config';
 import type { CycleEntry } from '../types/cycle';
 
-function cyclesRef(userId: string) {
-  return collection(db, 'users', userId, 'cycles');
+const STORAGE_KEY = 'flo_cycle_data';
+
+function getAll(): CycleEntry[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw) as CycleEntry[];
+  } catch {
+    return [];
+  }
+}
+
+function saveAll(entries: CycleEntry[]): void {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+}
+
+function generateId(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
 export async function saveCycleEntry(
   userId: string,
   entry: Omit<CycleEntry, 'id' | 'userId' | 'createdAt'>
 ): Promise<string> {
-  const docRef = await addDoc(cyclesRef(userId), {
-    ...entry,
+  const entries = getAll();
+  const id = generateId();
+  entries.unshift({
+    id,
     userId,
-    createdAt: serverTimestamp(),
+    startDate: entry.startDate,
+    endDate: entry.endDate ?? null,
+    createdAt: Date.now(),
   });
-  return docRef.id;
+  saveAll(entries);
+  return id;
 }
 
 export async function updateCycleEntry(
-  userId: string,
+  _userId: string,
   entryId: string,
   data: Partial<Pick<CycleEntry, 'startDate' | 'endDate'>>
 ): Promise<void> {
-  const docRefInstance = doc(db, 'users', userId, 'cycles', entryId);
-  await updateDoc(docRefInstance, data);
+  const entries = getAll();
+  const idx = entries.findIndex((e) => e.id === entryId);
+  if (idx !== -1) {
+    entries[idx] = { ...entries[idx], ...data };
+    saveAll(entries);
+  }
 }
 
-export async function getCycleHistory(userId: string): Promise<CycleEntry[]> {
-  const q = query(cyclesRef(userId), orderBy('createdAt', 'desc'));
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map((d) => ({
-    id: d.id,
-    userId: d.data().userId,
-    startDate: d.data().startDate,
-    endDate: d.data().endDate ?? null,
-    createdAt: d.data().createdAt?.toMillis?.() ?? Date.now(),
-  }));
+export async function getCycleHistory(_userId: string): Promise<CycleEntry[]> {
+  return getAll().sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export async function deleteCycleEntry(
-  userId: string,
+  _userId: string,
   entryId: string
 ): Promise<void> {
-  const docRefInstance = doc(db, 'users', userId, 'cycles', entryId);
-  await deleteDoc(docRefInstance);
+  const entries = getAll().filter((e) => e.id !== entryId);
+  saveAll(entries);
 }

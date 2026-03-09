@@ -1,9 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { User } from 'firebase/auth';
 import {
-  signInWithGoogle,
-  sendSignInLink,
-  completeSignInWithLink,
+  signInWithEmail,
   signOut,
   onAuthStateChanged,
 } from '../firebase/auth';
@@ -11,9 +9,7 @@ import {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  signInWithGoogle: () => Promise<void>;
-  sendSignInLink: (email: string) => Promise<void>;
-  completeSignInWithLink: (url: string) => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -31,16 +27,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return unsubscribe;
   }, []);
 
-  const handleGoogleSignIn = async () => {
-    await signInWithGoogle();
-  };
-
-  const handleSendLink = async (email: string) => {
-    await sendSignInLink(email);
-  };
-
-  const handleCompleteLink = async (url: string) => {
-    await completeSignInWithLink(url);
+  const handleSignIn = async (email: string, password: string) => {
+    await signInWithEmail(email, password);
   };
 
   const handleSignOut = async () => {
@@ -52,9 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         loading,
-        signInWithGoogle: handleGoogleSignIn,
-        sendSignInLink: handleSendLink,
-        completeSignInWithLink: handleCompleteLink,
+        signInWithEmail: handleSignIn,
         signOut: handleSignOut,
       }}
     >

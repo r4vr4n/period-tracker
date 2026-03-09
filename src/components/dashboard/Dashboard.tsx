@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
-import { getCycleHistory, saveCycleEntry, updateCycleEntry, deleteCycleEntry } from '../../firebase/firestore';
+import { getCycleHistory, saveCycleEntry, updateCycleEntry, deleteCycleEntry } from '../../storage/db';
 import { useCyclePredictor } from '../../hooks/useCyclePredictor';
 import CycleStatus from './CycleStatus';
 import QuickLog from './QuickLog';
@@ -9,52 +8,47 @@ import CycleLengthChart from '../charts/CycleLengthChart';
 import PeriodDurationChart from '../charts/PeriodDurationChart';
 import PredictionCalendar from '../charts/PredictionCalendar';
 import CycleHistory from '../history/CycleHistory';
+import Settings from '../settings/Settings';
 import type { CycleEntry } from '../../types/cycle';
 
-type Tab = 'dashboard' | 'calendar' | 'charts' | 'history';
+type Tab = 'dashboard' | 'calendar' | 'charts' | 'history' | 'settings';
 
 export default function Dashboard() {
-  const { user, signOut } = useAuth();
   const [cycles, setCycles] = useState<CycleEntry[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const { metrics, isCalculating } = useCyclePredictor(cycles);
 
   const loadCycles = useCallback(async () => {
-    if (!user) return;
     try {
-      const data = await getCycleHistory(user.uid);
+      const data = await getCycleHistory();
       setCycles(data);
     } catch (err) {
       console.error('Failed to load cycles:', err);
     } finally {
       setLoadingData(false);
     }
-  }, [user]);
+  }, []);
 
   useEffect(() => {
     loadCycles();
   }, [loadCycles]);
 
   const handlePeriodStart = async (date: string) => {
-    if (!user) return;
-    await saveCycleEntry(user.uid, { startDate: date, endDate: null });
+    await saveCycleEntry({ startDate: date, endDate: null });
     await loadCycles();
   };
 
   const handlePeriodEnd = async (date: string) => {
-    if (!user) return;
-    // Find the most recent cycle without an end date
     const ongoing = cycles.find((c) => !c.endDate);
     if (ongoing) {
-      await updateCycleEntry(user.uid, ongoing.id, { endDate: date });
+      await updateCycleEntry(ongoing.id, { endDate: date });
       await loadCycles();
     }
   };
 
   const handleDelete = async (entryId: string) => {
-    if (!user) return;
-    await deleteCycleEntry(user.uid, entryId);
+    await deleteCycleEntry(entryId);
     await loadCycles();
   };
 
@@ -65,6 +59,7 @@ export default function Dashboard() {
     { key: 'calendar', label: 'Calendar', icon: '📅' },
     { key: 'charts', label: 'Charts', icon: '📊' },
     { key: 'history', label: 'History', icon: '📋' },
+    { key: 'settings', label: 'Settings', icon: '⚙️' },
   ];
 
   if (loadingData) {
@@ -96,17 +91,6 @@ export default function Dashboard() {
             </svg>
           </div>
           <h2>Flo Cycle</h2>
-        </div>
-        <div className="header-right">
-          <div className="user-info">
-            {user?.photoURL && (
-              <img src={user.photoURL} alt="" className="user-avatar" referrerPolicy="no-referrer" />
-            )}
-            <span className="user-name">{user?.displayName || user?.email}</span>
-          </div>
-          <button className="btn btn-ghost" onClick={signOut} title="Sign out">
-            ↗
-          </button>
         </div>
       </header>
 
@@ -144,6 +128,12 @@ export default function Dashboard() {
         {activeTab === 'history' && (
           <div className="history-view">
             <CycleHistory cycles={cycles} onDelete={handleDelete} />
+          </div>
+        )}
+
+        {activeTab === 'settings' && (
+          <div className="settings-view">
+            <Settings onDataChanged={loadCycles} />
           </div>
         )}
 
