@@ -2,27 +2,54 @@ import { useState } from 'react';
 import { format } from 'date-fns';
 
 interface Props {
-  onLogCompletePeriod: (startDate: string, endDate: string) => void;
+  onLogCompletePeriod: (startDate: string, endDate: string) => Promise<void>;
 }
 
 export default function QuickLog({ onLogCompletePeriod }: Props) {
-  const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const [startDate, setStartDate] = useState(today);
+  const [endDate, setEndDate] = useState(today);
+  const [formError, setFormError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleStartChange = (val: string) => {
+    setStartDate(val);
+    // Auto-snap end date forward if it would be before the new start
+    if (endDate < val) setEndDate(val);
+    setFormError('');
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (new Date(endDate) < new Date(startDate)) {
-      alert('End date cannot be before start date.');
+    setFormError('');
+
+    if (endDate < startDate) {
+      setFormError('End date must be on or after the start date.');
       return;
     }
-    onLogCompletePeriod(startDate, endDate);
+
+    setIsSubmitting(true);
+    try {
+      await onLogCompletePeriod(startDate, endDate);
+      // Reset form to today after a successful save
+      setStartDate(today);
+      setEndDate(today);
+    } catch {
+      setFormError('Failed to save. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <div className="quick-log-card">
       <h3 className="card-title">Log Period</h3>
 
-      <form onSubmit={handleSubmit} className="custom-date-picker" style={{ display: 'flex', borderTop: 'none', paddingTop: 0 }}>
+      <form
+        onSubmit={handleSubmit}
+        className="custom-date-picker"
+        style={{ display: 'flex', borderTop: 'none', paddingTop: 0 }}
+      >
         <div className="complete-period-inputs">
           <div className="date-input-group">
             <label htmlFor="period-start-date">Start Date</label>
@@ -30,7 +57,8 @@ export default function QuickLog({ onLogCompletePeriod }: Props) {
               id="period-start-date"
               type="date"
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
+              max={today}
+              onChange={(e) => handleStartChange(e.target.value)}
               className="date-input"
               required
             />
@@ -41,14 +69,19 @@ export default function QuickLog({ onLogCompletePeriod }: Props) {
               id="period-end-date"
               type="date"
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
+              min={startDate}
+              max={today}
+              onChange={(e) => { setEndDate(e.target.value); setFormError(''); }}
               className="date-input"
               required
             />
           </div>
         </div>
-        <button type="submit" className="btn btn-primary">
-          Log Complete Period
+
+        {formError && <p className="form-error">{formError}</p>}
+
+        <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
+          {isSubmitting ? 'Saving…' : 'Log Period'}
         </button>
       </form>
     </div>

@@ -1375,3 +1375,149 @@ a {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+/* ============ Form Error ============ */
+.form-error {
+  color: #fca5a5;
+  font-size: 13px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: rgba(239, 68, 68, 0.1);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  line-height: 1.5;
+}
+
+/* ============ Toast Notification ============ */
+.app-toast {
+  position: fixed;
+  bottom: 96px; /* sit above the bottom nav bar */
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 500;
+  padding: 12px 22px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 500;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+  white-space: nowrap;
+  pointer-events: none;
+  animation: toastIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.app-toast.success {
+  background: rgba(34, 197, 94, 0.18);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  color: #86efac;
+}
+
+.app-toast.error {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* ============ Empty Dashboard Hint ============ */
+.empty-dashboard-hint {
+  background: var(--bg-card);
+  border: 1px dashed rgba(255, 107, 157, 0.3);
+  border-radius: var(--radius-lg);
+  padding: 28px 24px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  animation: fadeInUp 0.4s ease-out;
+}
+
+.hint-icon {
+  font-size: 38px;
+}
+
+.empty-dashboard-hint p {
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.65;
+  max-width: 320px;
+}
+
+.empty-dashboard-hint p strong {
+  color: var(--text-primary);
+}
+
+/* ============ History Cycle Number ============ */
+.history-cycle-number {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 2px 7px;
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
+}
+
+/* ============ Inline Delete Confirmation ============ */
+.delete-confirm-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.delete-confirm-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.btn-confirm-delete {
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  background: rgba(239, 68, 68, 0.18);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #fca5a5;
+  cursor: pointer;
+  font-family: inherit;
+  transition: var(--transition);
+  line-height: 1.6;
+}
+
+.btn-confirm-delete:hover {
+  background: rgba(239, 68, 68, 0.32);
+}
+
+.btn-cancel-delete {
+  padding: 4px 12px;
+  font-size: 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: inherit;
+  transition: var(--transition);
+  line-height: 1.6;
+}
+
+.btn-cancel-delete:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}

@@ -23,12 +23,12 @@ export default function CycleLengthChart({ cycles }: Props) {
   const data: { name: string; length: number; index: number }[] = [];
   for (let i = 1; i < sorted.length; i++) {
     const days = Math.round(
-      (new Date(sorted[i].startDate).getTime() - new Date(sorted[i - 1].startDate).getTime()) /
+      (new Date(sorted[i].startDate + 'T00:00:00').getTime() - new Date(sorted[i - 1].startDate + 'T00:00:00').getTime()) /
       (1000 * 60 * 60 * 24)
     );
     if (days > 0 && days < 60) {
       data.push({
-        name: new Date(sorted[i].startDate).toLocaleDateString('en-US', {
+        name: new Date(sorted[i].startDate + 'T00:00:00').toLocaleDateString('en-US', {
           month: 'short',
           day: 'numeric',
         }),

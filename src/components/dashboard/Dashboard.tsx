@@ -19,13 +19,25 @@ import Onboarding from '../onboarding/Onboarding';
 import type { CycleEntry } from '../../types/cycle';
 
 type Tab = 'dashboard' | 'calendar' | 'charts' | 'history' | 'settings';
+type ToastState = { message: string; type: 'success' | 'error' } | null;
 
 export default function Dashboard() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [cycles, setCycles] = useState<CycleEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
+  const [toast, setToast] = useState<ToastState>(null);
   const { metrics, isCalculating } = useCyclePredictor(cycles);
+
+  // Auto-dismiss toast after 3 s
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 3000);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  const showToast = (message: string, type: 'success' | 'error') =>
+    setToast({ message, type });
 
   const loadData = useCallback(async () => {
     try {
@@ -37,6 +49,7 @@ export default function Dashboard() {
       setCycles(history);
     } catch (err) {
       console.error('Failed to load data:', err);
+      showToast('Failed to load data. Please refresh.', 'error');
     } finally {
       setLoading(false);
     }
@@ -46,14 +59,20 @@ export default function Dashboard() {
     loadData();
   }, [loadData]);
 
-  const handlePeriodComplete = async (startDate: string, endDate: string) => {
+  const handlePeriodComplete = async (startDate: string, endDate: string): Promise<void> => {
     await saveCompletePeriod(startDate, endDate);
     await loadData();
+    showToast('Period logged successfully! 🩸', 'success');
   };
 
   const handleDelete = async (entryId: string) => {
-    await deleteCycleEntry(entryId);
-    await loadData();
+    try {
+      await deleteCycleEntry(entryId);
+      await loadData();
+      showToast('Entry deleted.', 'success');
+    } catch {
+      showToast('Failed to delete entry. Please try again.', 'error');
+    }
   };
 
   const tabs: { key: Tab; label: string; icon: string }[] = [
@@ -79,6 +98,13 @@ export default function Dashboard() {
 
   return (
     <div className="app-layout">
+      {/* Global Toast */}
+      {toast && (
+        <div className={`app-toast ${toast.type}`} role="status" aria-live="polite">
+          {toast.message}
+        </div>
+      )}
+
       {/* Header */}
       <header className="app-header">
         <div className="header-left">
@@ -109,10 +135,18 @@ export default function Dashboard() {
         {activeTab === 'dashboard' && (
           <div className="dashboard-view">
             {metrics && <CycleStatus metrics={metrics} />}
-            <QuickLog
-              onLogCompletePeriod={handlePeriodComplete}
-            />
-            {metrics && <MetricsCards metrics={metrics} />}
+            <QuickLog onLogCompletePeriod={handlePeriodComplete} />
+            {cycles.length === 0 && !isCalculating && (
+              <div className="empty-dashboard-hint">
+                <span className="hint-icon">🌸</span>
+                <p>
+                  No cycles logged yet. Fill in your period dates above and tap{' '}
+                  <strong>Log Period</strong> to get started — predictions and insights will
+                  appear here once you have data.
+                </p>
+              </div>
+            )}
+            {metrics && cycles.length > 0 && <MetricsCards metrics={metrics} />}
           </div>
         )}
 

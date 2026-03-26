@@ -23,11 +23,11 @@ export default function PeriodDurationChart({ cycles }: Props) {
     .map((c, i) => {
       const duration =
         Math.round(
-          (new Date(c.endDate!).getTime() - new Date(c.startDate).getTime()) /
+          (new Date(c.endDate! + 'T00:00:00').getTime() - new Date(c.startDate + 'T00:00:00').getTime()) /
           (1000 * 60 * 60 * 24)
         ) + 1;
       return {
-        name: new Date(c.startDate).toLocaleDateString('en-US', {
+        name: new Date(c.startDate + 'T00:00:00').toLocaleDateString('en-US', {
           month: 'short',
           day: 'numeric',
         }),

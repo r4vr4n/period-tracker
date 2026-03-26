@@ -1,15 +1,25 @@
 import type { CycleEntry, CycleMetrics, CyclePrediction, CyclePhase, FertileWindow, WorkerMessage, WorkerResponse } from '../types/cycle';
 
 function daysBetween(a: string, b: string): number {
-  const da = new Date(a);
-  const db = new Date(b);
+  // Append T00:00:00 to force local-time parsing.
+  // Without it, ISO date-only strings are parsed as UTC midnight, which in
+  // positive-offset timezones (e.g. IST +5:30) shifts to the previous local
+  // day — causing off-by-one errors at month boundaries like Feb 28/29.
+  const da = new Date(a + 'T00:00:00');
+  const db = new Date(b + 'T00:00:00');
   return Math.round((db.getTime() - da.getTime()) / (1000 * 60 * 60 * 24));
 }
 
 function addDays(date: string, days: number): string {
-  const d = new Date(date);
+  // Parse as local time (see daysBetween comment above).
+  const d = new Date(date + 'T00:00:00');
   d.setDate(d.getDate() + days);
-  return d.toISOString().split('T')[0];
+  // Use local date parts instead of toISOString() which returns UTC and would
+  // shift the date back one day again in positive-offset timezones.
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 function calculateMetrics(cycles: CycleEntry[], today: string): CycleMetrics {
