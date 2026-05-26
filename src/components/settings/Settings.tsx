@@ -4,21 +4,26 @@ import {
   importData,
   clearAllData,
   applySyncPayload,
-  generateSyncCode
+  generateSyncCode,
+  updateUserProfile,
+  DEFAULT_USUAL_FLOW_DAYS,
+  type UserProfile
 } from '../../storage/db';
 import { p2pService } from '../../storage/peerService';
 
 interface Props {
+  profile: UserProfile;
   onDataChanged: () => void;
 }
 
-export default function Settings({ onDataChanged }: Props) {
+export default function Settings({ profile, onDataChanged }: Props) {
   const [status, setStatus] = useState('');
   const [statusType, setStatusType] = useState<'success' | 'error' | ''>('');
   const [syncMode, setSyncMode] = useState<'idle' | 'send' | 'receive'>('idle');
   const [transferCode, setTransferCode] = useState('');
   const [inputCode, setInputCode] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [usualFlowDays, setUsualFlowDays] = useState(profile.usualFlowDays ?? DEFAULT_USUAL_FLOW_DAYS);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const showStatus = (msg: string, type: 'success' | 'error') => {
@@ -34,6 +39,22 @@ export default function Settings({ onDataChanged }: Props) {
   useEffect(() => {
     return () => p2pService.destroy();
   }, []);
+
+  useEffect(() => {
+    setUsualFlowDays(profile.usualFlowDays ?? DEFAULT_USUAL_FLOW_DAYS);
+  }, [profile.usualFlowDays]);
+
+  const handleFlowDaysChange = async (nextValue: number) => {
+    const next = Math.min(10, Math.max(1, nextValue));
+    setUsualFlowDays(next);
+    try {
+      await updateUserProfile({ usualFlowDays: next });
+      showStatus(`Usual flow set to ${next} day${next === 1 ? '' : 's'}.`, 'success');
+      onDataChanged();
+    } catch {
+      showStatus('Failed to update usual flow length.', 'error');
+    }
+  };
 
   const handleExport = async () => {
     try {
@@ -123,6 +144,43 @@ export default function Settings({ onDataChanged }: Props) {
           {status}
         </div>
       )}
+
+      <div className="settings-card">
+        <h3 className="card-title">Cycle Defaults</h3>
+        <p className="settings-description">
+          Used for smart defaults and predictions until your completed logs can personalize it.
+        </p>
+
+        <div className="flow-setting-row">
+          <div>
+            <span className="setting-label">Usual flow length</span>
+            <strong>{usualFlowDays} day{usualFlowDays === 1 ? '' : 's'}</strong>
+          </div>
+          <div className="stepper-control" aria-label="Usual flow length">
+            <button
+              type="button"
+              onClick={() => handleFlowDaysChange(usualFlowDays - 1)}
+              disabled={usualFlowDays <= 1}
+            >
+              -
+            </button>
+            <input
+              type="number"
+              min="1"
+              max="10"
+              value={usualFlowDays}
+              onChange={(e) => handleFlowDaysChange(Number(e.target.value))}
+            />
+            <button
+              type="button"
+              onClick={() => handleFlowDaysChange(usualFlowDays + 1)}
+              disabled={usualFlowDays >= 10}
+            >
+              +
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* P2P Sync Section */}
       <div className="settings-card sync-card">

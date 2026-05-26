@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   generateSyncCode,
+  DEFAULT_USUAL_FLOW_DAYS,
   setUserProfile,
   type UserProfile,
 } from "../../storage/db";
@@ -28,6 +29,7 @@ export default function Onboarding({ onComplete }: Props) {
         name: name.trim(),
         syncId: generateSyncCode(),
         createdAt: Date.now(),
+        usualFlowDays: DEFAULT_USUAL_FLOW_DAYS,
       };
       await setUserProfile(profile);
       onComplete(profile);

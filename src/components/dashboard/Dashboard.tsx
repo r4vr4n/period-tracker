@@ -2,13 +2,17 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   getCycleHistory,
   deleteCycleEntry,
+  saveCycleEntry,
   saveCompletePeriod,
+  updateCycleEntry,
   getUserProfile,
+  DEFAULT_USUAL_FLOW_DAYS,
   type UserProfile
 } from '../../storage/db';
 import { useCyclePredictor } from '../../hooks/useCyclePredictor';
 import CycleStatus from './CycleStatus';
 import QuickLog from './QuickLog';
+import CycleInsights from './CycleInsights';
 import MetricsCards from '../charts/MetricsCards';
 import CycleLengthChart from '../charts/CycleLengthChart';
 import PeriodDurationChart from '../charts/PeriodDurationChart';
@@ -17,6 +21,7 @@ import CycleHistory from '../history/CycleHistory';
 import Settings from '../settings/Settings';
 import Onboarding from '../onboarding/Onboarding';
 import type { CycleEntry } from '../../types/cycle';
+import { format } from 'date-fns';
 
 type Tab = 'dashboard' | 'calendar' | 'charts' | 'history' | 'settings';
 type ToastState = { message: string; type: 'success' | 'error' } | null;
@@ -27,7 +32,8 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [toast, setToast] = useState<ToastState>(null);
-  const { metrics, isCalculating } = useCyclePredictor(cycles);
+  const usualFlowDays = profile?.usualFlowDays ?? DEFAULT_USUAL_FLOW_DAYS;
+  const { metrics, isCalculating } = useCyclePredictor(cycles, usualFlowDays);
 
   // Auto-dismiss toast after 3 s
   useEffect(() => {
@@ -62,7 +68,36 @@ export default function Dashboard() {
   const handlePeriodComplete = async (startDate: string, endDate: string): Promise<void> => {
     await saveCompletePeriod(startDate, endDate);
     await loadData();
-    showToast('Period logged successfully! 🩸', 'success');
+    showToast('Period saved on this device.', 'success');
+  };
+
+  const handleStartPeriodToday = async (): Promise<void> => {
+    const activePeriod = cycles.find((cycle) => !cycle.endDate);
+    if (activePeriod) {
+      showToast('An active period is already being tracked.', 'error');
+      return;
+    }
+
+    await saveCycleEntry({ startDate: format(new Date(), 'yyyy-MM-dd'), endDate: null });
+    await loadData();
+    showToast('Period started. Saved on this device.', 'success');
+  };
+
+  const handleEndActivePeriod = async (endDate: string): Promise<void> => {
+    const activePeriod = cycles.find((cycle) => !cycle.endDate);
+    if (!activePeriod) {
+      showToast('No active period to end right now.', 'error');
+      return;
+    }
+
+    if (endDate < activePeriod.startDate) {
+      showToast('End date must be after the start date.', 'error');
+      return;
+    }
+
+    await updateCycleEntry(activePeriod.id, { endDate });
+    await loadData();
+    showToast('Period ended. Saved on this device.', 'success');
   };
 
   const handleDelete = async (entryId: string) => {
@@ -134,18 +169,32 @@ export default function Dashboard() {
       <main className="app-content">
         {activeTab === 'dashboard' && (
           <div className="dashboard-view">
+            <div className="today-strip">
+              <div>
+                <span className="eyebrow">Today</span>
+                <h1>{format(new Date(), 'EEEE, MMM d')}</h1>
+              </div>
+              <span className="local-save-pill">Saved on this device</span>
+            </div>
             {metrics && <CycleStatus metrics={metrics} />}
-            <QuickLog onLogCompletePeriod={handlePeriodComplete} />
+            <QuickLog
+              cycles={cycles}
+              metrics={metrics}
+              usualFlowDays={usualFlowDays}
+              onStartPeriodToday={handleStartPeriodToday}
+              onEndActivePeriod={handleEndActivePeriod}
+              onLogCompletePeriod={handlePeriodComplete}
+              onSoftLog={(message) => showToast(message, 'success')}
+            />
             {cycles.length === 0 && !isCalculating && (
               <div className="empty-dashboard-hint">
-                <span className="hint-icon">🌸</span>
                 <p>
-                  No cycles logged yet. Fill in your period dates above and tap{' '}
-                  <strong>Log Period</strong> to get started — predictions and insights will
-                  appear here once you have data.
+                  No pressure to fill everything in. Start with today, or add past
+                  period dates when you have a minute.
                 </p>
               </div>
             )}
+            {metrics && cycles.length > 0 && <CycleInsights cycles={cycles} metrics={metrics} />}
             {metrics && cycles.length > 0 && <MetricsCards metrics={metrics} />}
           </div>
         )}
@@ -175,7 +224,7 @@ export default function Dashboard() {
 
         {activeTab === 'settings' && (
           <div className="settings-view">
-            <Settings onDataChanged={loadData} />
+            <Settings profile={profile} onDataChanged={loadData} />
           </div>
         )}
 

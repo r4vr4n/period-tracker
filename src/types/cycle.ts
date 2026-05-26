@@ -39,6 +39,7 @@ export interface WorkerMessage {
   payload: {
     cycles: CycleEntry[];
     today: string;
+    usualFlowDays: number;
   };
 }
 

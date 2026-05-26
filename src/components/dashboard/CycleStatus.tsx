@@ -5,9 +5,10 @@ interface Props {
 }
 
 export default function CycleStatus({ metrics }: Props) {
-  const { currentCycleDay, currentPhase, averageCycleLength, nextPredictedPeriod } = metrics;
+  const { currentCycleDay, currentPhase, averageCycleLength, predictions, regularityScore } = metrics;
   const progress = Math.min(100, (currentCycleDay / averageCycleLength) * 100);
   const daysLeft = averageCycleLength - currentCycleDay;
+  const nextPrediction = predictions[0];
 
   const phaseInfo: Record<string, { label: string; color: string; emoji: string }> = {
     menstrual: { label: 'Menstrual', color: '#FF6B9D', emoji: '🩸' },
@@ -19,6 +20,14 @@ export default function CycleStatus({ metrics }: Props) {
   const phase = phaseInfo[currentPhase];
   const circumference = 2 * Math.PI * 90;
   const dashOffset = circumference - (progress / 100) * circumference;
+  const confidencePercent = nextPrediction ? Math.round(nextPrediction.confidence * 100) : 0;
+  const confidenceLabel =
+    confidencePercent >= 75 ? 'High' : confidencePercent >= 55 ? 'Medium' : 'Low';
+  const formatDate = (date: string) =>
+    new Date(date + 'T00:00:00').toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+    });
 
   return (
     <div className="cycle-status-card">
@@ -66,18 +75,32 @@ export default function CycleStatus({ metrics }: Props) {
           <span className="stat-value">{daysLeft > 0 ? daysLeft : '—'}</span>
           <span className="stat-label">days until next period</span>
         </div>
-        {nextPredictedPeriod && (
+        {nextPrediction && (
           <div className="cycle-stat">
             <span className="stat-value">
-              {new Date(nextPredictedPeriod + 'T00:00:00').toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-              })}
+              {formatDate(nextPrediction.predictedStartDate)}-{formatDate(nextPrediction.predictedEndDate)}
             </span>
-            <span className="stat-label">predicted start</span>
+            <span className="stat-label">likely period range</span>
           </div>
         )}
       </div>
+
+      {nextPrediction && (
+        <div className="confidence-panel">
+          <div className="confidence-copy">
+            <span>Prediction confidence</span>
+            <strong>{confidenceLabel}</strong>
+          </div>
+          <div className="confidence-meter" aria-label={`Prediction confidence ${confidencePercent}%`}>
+            <span style={{ width: `${confidencePercent}%` }} />
+          </div>
+          <p>
+            {regularityScore < 60
+              ? 'Recent cycles vary more than usual, so estimates are broader right now.'
+              : 'Estimate is based on your recent cycle pattern and may shift as you log more.'}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

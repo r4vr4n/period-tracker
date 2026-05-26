@@ -4,11 +4,13 @@ const DB_NAME = 'flo_cycle_db';
 const DB_VERSION = 2;
 const STORE_NAME = 'cycles';
 const PROFILE_STORE = 'profile';
+export const DEFAULT_USUAL_FLOW_DAYS = 3;
 
 export interface UserProfile {
   name: string;
   syncId: string;
   createdAt: number;
+  usualFlowDays?: number;
 }
 
 export interface SyncPayload {
@@ -69,6 +71,14 @@ export async function setUserProfile(profile: UserProfile): Promise<void> {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
+}
+
+export async function updateUserProfile(data: Partial<UserProfile>): Promise<UserProfile> {
+  const existing = await getUserProfile();
+  if (!existing) throw new Error('No profile found');
+  const updated: UserProfile = { ...existing, ...data };
+  await setUserProfile(updated);
+  return updated;
 }
 
 /* ---- Cycle Entries ---- */

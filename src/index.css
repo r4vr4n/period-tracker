@@ -546,6 +546,40 @@ a {
   animation: fadeInUp 0.4s ease-out;
 }
 
+.today-strip {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.today-strip h1 {
+  font-size: 28px;
+  line-height: 1.1;
+  font-weight: 800;
+}
+
+.eyebrow {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.local-save-pill {
+  flex-shrink: 0;
+  padding: 8px 10px;
+  border: 1px solid rgba(78, 205, 196, 0.22);
+  border-radius: 999px;
+  background: rgba(78, 205, 196, 0.08);
+  color: var(--accent-teal);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 /* ============ Cards ============ */
 .card-title {
   font-size: 16px;
@@ -645,6 +679,49 @@ a {
   letter-spacing: 0.5px;
 }
 
+.confidence-panel {
+  width: 100%;
+  max-width: 440px;
+  padding: 14px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.confidence-copy {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.confidence-copy strong {
+  color: var(--text-primary);
+}
+
+.confidence-meter {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.confidence-meter span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent-teal), var(--accent-yellow));
+}
+
+.confidence-panel p {
+  margin-top: 10px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 /* ============ Quick Log ============ */
 .complete-period-inputs {
   display: grid;
@@ -692,15 +769,125 @@ a {
   box-shadow: var(--shadow-card);
 }
 
-.quick-log-card .card-title {
-  margin-bottom: 20px;
+.quick-log-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.quick-log-header .card-title {
+  margin-bottom: 4px;
+}
+
+.quick-log-header p {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.quick-log-context {
+  align-self: flex-start;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.quick-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.quick-action {
+  min-height: 72px;
+  padding: 14px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  text-align: left;
+  transition: var(--transition);
+}
+
+.quick-action.wide {
+  grid-column: span 2;
+}
+
+.quick-action:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-1px);
+}
+
+.quick-action.primary {
+  background: linear-gradient(135deg, rgba(255, 107, 157, 0.9), rgba(78, 205, 196, 0.72));
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.quick-action.selected {
+  border-color: rgba(78, 205, 196, 0.35);
+  background: rgba(78, 205, 196, 0.13);
+}
+
+.quick-action span,
+.quick-action small {
+  display: block;
+}
+
+.quick-action span {
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.quick-action small {
+  margin-top: 4px;
+  color: rgba(240, 236, 249, 0.72);
+  font-size: 12px;
+}
+
+.symptom-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.symptom-chip {
+  padding: 9px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.055);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.symptom-chip.selected {
+  background: rgba(78, 205, 196, 0.14);
+  border-color: rgba(78, 205, 196, 0.35);
+  color: var(--text-primary);
+}
+
+.details-toggle {
+  width: 100%;
+  padding: 10px 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: left;
 }
 
 .custom-date-picker {
-  display: flex;
+  display: none;
   flex-direction: column;
 }
 
+.custom-date-picker.open {
+  display: flex;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
 
 .complete-period-inputs {
   display: flex;
@@ -720,6 +907,58 @@ a {
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+.form-error {
+  margin-bottom: 12px;
+  color: #fca5a5;
+  font-size: 13px;
+}
+
+.empty-dashboard-hint,
+.insight-panel {
+  background: var(--bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  box-shadow: var(--shadow-card);
+}
+
+.empty-dashboard-hint p {
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.insight-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.insight-header .card-title {
+  margin-bottom: 0;
+}
+
+.insight-header span {
+  color: var(--accent-teal);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.insight-list {
+  display: grid;
+  gap: 10px;
+}
+
+.insight-list p {
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 /* ============ Metrics Cards ============ */
@@ -1129,6 +1368,62 @@ a {
 .settings-description.small {
   font-size: 13px;
   margin-bottom: 12px;
+}
+
+.flow-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.flow-setting-row>div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.setting-label {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.flow-setting-row strong {
+  color: var(--text-primary);
+  font-size: 20px;
+}
+
+.stepper-control {
+  display: grid;
+  grid-template-columns: 40px 64px 40px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.stepper-control button {
+  min-height: 40px;
+  color: var(--text-primary);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.stepper-control button:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.stepper-control input {
+  width: 100%;
+  border: 0;
+  border-inline: 1px solid rgba(255, 255, 255, 0.08);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 700;
+  text-align: center;
+  outline: none;
 }
 
 .settings-actions {

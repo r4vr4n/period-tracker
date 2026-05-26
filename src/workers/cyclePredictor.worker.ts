@@ -22,10 +22,16 @@ function addDays(date: string, days: number): string {
   return `${y}-${m}-${day}`;
 }
 
-function calculateMetrics(cycles: CycleEntry[], today: string): CycleMetrics {
+function normalizeFlowDays(days: number): number {
+  if (!Number.isFinite(days)) return 3;
+  return Math.min(10, Math.max(1, Math.round(days)));
+}
+
+function calculateMetrics(cycles: CycleEntry[], today: string, usualFlowDays: number): CycleMetrics {
+  const fallbackPeriodDuration = normalizeFlowDays(usualFlowDays);
   const defaultMetrics: CycleMetrics = {
     averageCycleLength: 28,
-    averagePeriodDuration: 5,
+    averagePeriodDuration: fallbackPeriodDuration,
     shortestCycle: 28,
     longestCycle: 28,
     regularityScore: 0,
@@ -68,7 +74,7 @@ function calculateMetrics(cycles: CycleEntry[], today: string): CycleMetrics {
   const avgPeriodDuration =
     periodDurations.length > 0
       ? Math.round(periodDurations.reduce((s, v) => s + v, 0) / periodDurations.length)
-      : 5;
+      : fallbackPeriodDuration;
 
   const shortestCycle = cycleLengths.length > 0 ? Math.min(...cycleLengths) : avgCycleLength;
   const longestCycle = cycleLengths.length > 0 ? Math.max(...cycleLengths) : avgCycleLength;
@@ -151,8 +157,8 @@ function calculateMetrics(cycles: CycleEntry[], today: string): CycleMetrics {
 // Web Worker message handler
 self.onmessage = function (e: MessageEvent<WorkerMessage>) {
   if (e.data.type === 'CALCULATE_PREDICTIONS') {
-    const { cycles, today } = e.data.payload;
-    const metrics = calculateMetrics(cycles, today);
+    const { cycles, today, usualFlowDays } = e.data.payload;
+    const metrics = calculateMetrics(cycles, today, usualFlowDays);
     const response: WorkerResponse = {
       type: 'PREDICTION_RESULT',
       payload: metrics,

@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { CycleEntry, CycleMetrics, WorkerMessage, WorkerResponse } from '../types/cycle';
+import { DEFAULT_USUAL_FLOW_DAYS } from '../storage/db';
 
-export function useCyclePredictor(cycles: CycleEntry[]) {
+export function useCyclePredictor(cycles: CycleEntry[], usualFlowDays = DEFAULT_USUAL_FLOW_DAYS) {
   const [metrics, setMetrics] = useState<CycleMetrics | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
   const workerRef = useRef<Worker | null>(null);
@@ -31,6 +32,7 @@ export function useCyclePredictor(cycles: CycleEntry[]) {
       type: 'CALCULATE_PREDICTIONS',
       payload: {
         cycles,
+        usualFlowDays,
         // Use local date parts to avoid UTC offset issues (toISOString() returns
       // a UTC date which can differ from local date in positive-offset timezones).
       today: (() => {
@@ -43,7 +45,7 @@ export function useCyclePredictor(cycles: CycleEntry[]) {
       },
     };
     workerRef.current.postMessage(message);
-  }, [cycles]);
+  }, [cycles, usualFlowDays]);
 
   useEffect(() => {
     if (cycles.length > 0) {
