@@ -6,6 +6,18 @@ export interface CycleEntry {
   createdAt: number; // timestamp
 }
 
+export interface DailyLog {
+  id: string;
+  date: string; // ISO date string YYYY-MM-DD
+  symptoms: string[];
+  mood: string | null;
+  energy: number | null; // 1-5
+  spotting: boolean;
+  note: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface CyclePrediction {
   predictedStartDate: string;
   predictedEndDate: string;

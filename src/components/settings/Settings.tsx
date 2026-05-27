@@ -25,6 +25,16 @@ export default function Settings({ profile, onDataChanged }: Props) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [usualFlowDays, setUsualFlowDays] = useState(profile.usualFlowDays ?? DEFAULT_USUAL_FLOW_DAYS);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const prefs = {
+    minimalMode: Boolean(profile.minimalMode),
+    showFertility: profile.showFertility !== false,
+    discreetMode: Boolean(profile.discreetMode),
+    reducedMotion: Boolean(profile.reducedMotion),
+    highContrast: Boolean(profile.highContrast),
+    largeText: Boolean(profile.largeText),
+  };
+
+  const getErrorMessage = (err: unknown) => err instanceof Error ? err.message : 'Something went wrong.';
 
   const showStatus = (msg: string, type: 'success' | 'error') => {
     setStatus(msg);
@@ -53,6 +63,16 @@ export default function Settings({ profile, onDataChanged }: Props) {
       onDataChanged();
     } catch {
       showStatus('Failed to update usual flow length.', 'error');
+    }
+  };
+
+  const handlePreferenceChange = async (data: Partial<UserProfile>) => {
+    try {
+      await updateUserProfile(data);
+      showStatus('Preference updated.', 'success');
+      onDataChanged();
+    } catch {
+      showStatus('Failed to update preference.', 'error');
     }
   };
 
@@ -100,8 +120,8 @@ export default function Settings({ profile, onDataChanged }: Props) {
         setSyncMode('idle');
         onDataChanged();
       });
-    } catch (err: any) {
-      showStatus(err.message, 'error');
+    } catch (err: unknown) {
+      showStatus(getErrorMessage(err), 'error');
       setSyncMode('idle');
     } finally {
       setIsProcessing(false);
@@ -119,8 +139,8 @@ export default function Settings({ profile, onDataChanged }: Props) {
       await p2pService.sendData(inputCode.trim());
       showStatus('Data sent!', 'success');
       onDataChanged();
-    } catch (err: any) {
-      showStatus(err.message, 'error');
+    } catch (err: unknown) {
+      showStatus(getErrorMessage(err), 'error');
     } finally {
       setIsProcessing(false);
     }
@@ -182,9 +202,76 @@ export default function Settings({ profile, onDataChanged }: Props) {
         </div>
       </div>
 
+      <div className="settings-card">
+        <h3 className="card-title">Display & Privacy</h3>
+        <p className="settings-description">
+          Keep the app calm, private, and matched to how much detail you want to see.
+        </p>
+        <div className="toggle-list">
+          <label className="toggle-row">
+            <span>Minimal Mode</span>
+            <input
+              type="checkbox"
+              checked={prefs.minimalMode}
+              onChange={(e) => handlePreferenceChange({
+                minimalMode: e.target.checked,
+                showFertility: e.target.checked ? false : profile.showFertility,
+              })}
+            />
+          </label>
+          <label className="toggle-row">
+            <span>Show fertility estimates</span>
+            <input
+              type="checkbox"
+              checked={prefs.showFertility && !prefs.minimalMode}
+              disabled={prefs.minimalMode}
+              onChange={(e) => handlePreferenceChange({ showFertility: e.target.checked })}
+            />
+          </label>
+          <label className="toggle-row">
+            <span>Discreet app wording</span>
+            <input
+              type="checkbox"
+              checked={prefs.discreetMode}
+              onChange={(e) => handlePreferenceChange({ discreetMode: e.target.checked })}
+            />
+          </label>
+        </div>
+      </div>
+
+      <div className="settings-card">
+        <h3 className="card-title">Accessibility</h3>
+        <div className="toggle-list">
+          <label className="toggle-row">
+            <span>Reduce motion</span>
+            <input
+              type="checkbox"
+              checked={prefs.reducedMotion}
+              onChange={(e) => handlePreferenceChange({ reducedMotion: e.target.checked })}
+            />
+          </label>
+          <label className="toggle-row">
+            <span>Higher contrast</span>
+            <input
+              type="checkbox"
+              checked={prefs.highContrast}
+              onChange={(e) => handlePreferenceChange({ highContrast: e.target.checked })}
+            />
+          </label>
+          <label className="toggle-row">
+            <span>Larger text</span>
+            <input
+              type="checkbox"
+              checked={prefs.largeText}
+              onChange={(e) => handlePreferenceChange({ largeText: e.target.checked })}
+            />
+          </label>
+        </div>
+      </div>
+
       {/* P2P Sync Section */}
       <div className="settings-card sync-card">
-        <h3 className="card-title">Local Device Sync</h3>
+        <h3 className="card-title">Move to Another Device</h3>
         <p className="settings-description">
           Sync your data directly between devices over Wi-Fi without using a cloud server.
         </p>
@@ -192,11 +279,11 @@ export default function Settings({ profile, onDataChanged }: Props) {
         {syncMode === 'idle' && (
           <div className="settings-actions horizontal">
             <button className="btn btn-primary" onClick={startReceiving}>
-              <span className="btn-icon">📥</span>
+              <span className="btn-icon">In</span>
               Receive Data
             </button>
             <button className="btn btn-secondary" onClick={() => setSyncMode('send')}>
-              <span className="btn-icon">📤</span>
+              <span className="btn-icon">Out</span>
               Send Data
             </button>
           </div>
@@ -242,20 +329,20 @@ export default function Settings({ profile, onDataChanged }: Props) {
 
       {/* Local Backup Section */}
       <div className="settings-card">
-        <h3 className="card-title">Manual Backup</h3>
+        <h3 className="card-title">Backup My Data</h3>
         <p className="settings-description">
           Export your history to a JSON file for your own records or manual transfer.
         </p>
 
         <div className="settings-actions horizontal">
           <button className="btn btn-secondary" onClick={handleExport}>
-            <span className="btn-icon">💾</span>
-            Export JSON
+            <span className="btn-icon">Save</span>
+            Export backup
           </button>
 
           <label className="btn btn-secondary import-btn">
-            <span className="btn-icon">📂</span>
-            Import JSON
+            <span className="btn-icon">Open</span>
+            Restore backup
             <input
               ref={fileInputRef}
               type="file"
@@ -271,7 +358,7 @@ export default function Settings({ profile, onDataChanged }: Props) {
       <div className="settings-card danger-card">
         <h3 className="card-title">Danger Zone</h3>
         <button className="btn btn-danger" onClick={handleClear}>
-          <span className="btn-icon">🗑️</span>
+          <span className="btn-icon">Clear</span>
           Clear All Data
         </button>
       </div>

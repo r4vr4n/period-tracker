@@ -5,17 +5,21 @@ import type { CycleEntry } from '../../types/cycle';
 interface Props {
   cycles: CycleEntry[];
   onDelete: (id: string) => void;
+  onUpdate: (id: string, data: Partial<Pick<CycleEntry, 'startDate' | 'endDate'>>) => void;
 }
 
-export default function CycleHistory({ cycles, onDelete }: Props) {
+export default function CycleHistory({ cycles, onDelete, onUpdate }: Props) {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editStart, setEditStart] = useState('');
+  const [editEnd, setEditEnd] = useState('');
 
   if (cycles.length === 0) {
     return (
       <div className="history-card">
         <h3 className="card-title">Cycle History</h3>
         <div className="history-empty">
-          <span className="empty-icon">📝</span>
+          <span className="empty-icon">Log</span>
           <p>No cycles logged yet. Use the dashboard to start tracking.</p>
         </div>
       </div>
@@ -44,6 +48,44 @@ export default function CycleHistory({ cycles, onDelete }: Props) {
             ? Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
             : null;
           const isPendingDelete = pendingDeleteId === cycle.id;
+          const isEditing = editingId === cycle.id;
+
+          if (isEditing) {
+            return (
+              <form
+                className="history-item edit-mode"
+                key={cycle.id}
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  onUpdate(cycle.id, { startDate: editStart, endDate: editEnd || null });
+                  setEditingId(null);
+                }}
+              >
+                <span className="history-cycle-number">#{cycleNumber}</span>
+                <div className="history-edit-fields">
+                  <input
+                    type="date"
+                    value={editStart}
+                    max={editEnd || undefined}
+                    onChange={(e) => setEditStart(e.target.value)}
+                    required
+                  />
+                  <input
+                    type="date"
+                    value={editEnd}
+                    min={editStart}
+                    onChange={(e) => setEditEnd(e.target.value)}
+                  />
+                </div>
+                <div className="history-edit-actions">
+                  <button type="submit" className="btn-confirm-delete">Save</button>
+                  <button type="button" className="btn-cancel-delete" onClick={() => setEditingId(null)}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            );
+          }
 
           return (
             <div className="history-item" key={cycle.id}>
@@ -85,14 +127,28 @@ export default function CycleHistory({ cycles, onDelete }: Props) {
                   </button>
                 </div>
               ) : (
-                <button
-                  type="button"
-                  className="btn btn-icon-delete"
-                  onClick={() => setPendingDeleteId(cycle.id)}
-                  title="Delete entry"
-                >
-                  🗑️
-                </button>
+                <div className="history-row-actions">
+                  <button
+                    type="button"
+                    className="btn btn-icon-delete"
+                    onClick={() => {
+                      setEditingId(cycle.id);
+                      setEditStart(cycle.startDate);
+                      setEditEnd(cycle.endDate ?? '');
+                    }}
+                    title="Edit entry"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-icon-delete"
+                    onClick={() => setPendingDeleteId(cycle.id)}
+                    title="Delete entry"
+                  >
+                    Delete
+                  </button>
+                </div>
               )}
             </div>
           );

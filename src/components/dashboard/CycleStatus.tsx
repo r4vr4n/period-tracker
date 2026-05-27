@@ -2,19 +2,20 @@ import type { CycleMetrics } from '../../types/cycle';
 
 interface Props {
   metrics: CycleMetrics;
+  minimalMode?: boolean;
 }
 
-export default function CycleStatus({ metrics }: Props) {
+export default function CycleStatus({ metrics, minimalMode = false }: Props) {
   const { currentCycleDay, currentPhase, averageCycleLength, predictions, regularityScore } = metrics;
   const progress = Math.min(100, (currentCycleDay / averageCycleLength) * 100);
   const daysLeft = averageCycleLength - currentCycleDay;
   const nextPrediction = predictions[0];
 
-  const phaseInfo: Record<string, { label: string; color: string; emoji: string }> = {
-    menstrual: { label: 'Menstrual', color: '#FF6B9D', emoji: '🩸' },
-    follicular: { label: 'Follicular', color: '#4ECDC4', emoji: '🌱' },
-    ovulation: { label: 'Ovulation', color: '#FFE66D', emoji: '✨' },
-    luteal: { label: 'Luteal', color: '#A78BFA', emoji: '🌙' },
+  const phaseInfo: Record<string, { label: string; color: string; code: string }> = {
+    menstrual: { label: 'Menstrual', color: '#FF6B9D', code: 'M' },
+    follicular: { label: 'Follicular', color: '#4ECDC4', code: 'F' },
+    ovulation: { label: 'Ovulation', color: '#FFE66D', code: 'O' },
+    luteal: { label: 'Luteal', color: '#A78BFA', code: 'L' },
   };
 
   const phase = phaseInfo[currentPhase];
@@ -65,7 +66,7 @@ export default function CycleStatus({ metrics }: Props) {
         <div className="cycle-ring-inner">
           <span className="cycle-day-number">Day {currentCycleDay}</span>
           <span className="cycle-phase-label" style={{ color: phase.color }}>
-            {phase.emoji} {phase.label}
+            {phase.code} {phase.label}
           </span>
         </div>
       </div>
@@ -85,7 +86,7 @@ export default function CycleStatus({ metrics }: Props) {
         )}
       </div>
 
-      {nextPrediction && (
+      {nextPrediction && !minimalMode && (
         <div className="confidence-panel">
           <div className="confidence-copy">
             <span>Prediction confidence</span>
@@ -99,6 +100,14 @@ export default function CycleStatus({ metrics }: Props) {
               ? 'Recent cycles vary more than usual, so estimates are broader right now.'
               : 'Estimate is based on your recent cycle pattern and may shift as you log more.'}
           </p>
+          <details className="prediction-details">
+            <summary>Why?</summary>
+            <p>
+              Based on {metrics.totalCyclesTracked} logged cycle{metrics.totalCyclesTracked === 1 ? '' : 's'},
+              average cycle length of {metrics.averageCycleLength} days, and average flow of{' '}
+              {metrics.averagePeriodDuration} days.
+            </p>
+          </details>
         </div>
       )}
     </div>

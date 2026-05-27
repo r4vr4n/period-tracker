@@ -13,15 +13,36 @@ import {
   parseISO,
 } from 'date-fns';
 import type { CycleEntry, CyclePrediction, FertileWindow } from '../../types/cycle';
+import type { DailyLog } from '../../types/cycle';
 
 interface Props {
   cycles: CycleEntry[];
+  dailyLogs: DailyLog[];
   predictions: CyclePrediction[];
   fertileWindow: FertileWindow | null;
+  showFertility: boolean;
+  onLogPeriod: (startDate: string, endDate: string) => Promise<void>;
+  onSaveDailyLog: (
+    date: string,
+    data: Partial<Pick<DailyLog, 'symptoms' | 'mood' | 'energy' | 'spotting' | 'note'>>
+  ) => Promise<void>;
+  onSoftLog: (message: string) => void;
 }
 
-export default function PredictionCalendar({ cycles, predictions, fertileWindow }: Props) {
+export default function PredictionCalendar({
+  cycles,
+  dailyLogs,
+  predictions,
+  fertileWindow,
+  showFertility,
+  onLogPeriod,
+  onSaveDailyLog,
+  onSoftLog,
+}: Props) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const symptomShortcuts = ['Cramps', 'Tired', 'Cravings', 'Headache'];
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
@@ -63,7 +84,7 @@ export default function PredictionCalendar({ cycles, predictions, fertileWindow 
     }
 
     // Fertile window
-    if (fertileWindow) {
+    if (showFertility && fertileWindow) {
       const fStart = parseISO(fertileWindow.startDate);
       const fEnd = parseISO(fertileWindow.endDate);
       let d = fStart;
@@ -74,8 +95,13 @@ export default function PredictionCalendar({ cycles, predictions, fertileWindow 
       addStatus(fertileWindow.ovulationDate, 'ovulation');
     }
 
+    for (const log of dailyLogs) {
+      if (log.spotting) addStatus(log.date, 'spotting');
+      if (log.symptoms.length > 0 || log.mood || log.note) addStatus(log.date, 'logged');
+    }
+
     return map;
-  }, [cycles, predictions, fertileWindow]);
+  }, [cycles, predictions, fertileWindow, showFertility, dailyLogs]);
 
   // Generate calendar days
   const days: Date[] = [];
@@ -91,6 +117,47 @@ export default function PredictionCalendar({ cycles, predictions, fertileWindow 
   }
 
   const today = new Date();
+  const selectedLog = selectedDate
+    ? dailyLogs.find((log) => log.date === selectedDate)
+    : null;
+
+  const handleDayPeriod = async () => {
+    if (!selectedDate) return;
+    setIsSaving(true);
+    try {
+      await onLogPeriod(selectedDate, selectedDate);
+      onSoftLog('Period day saved.');
+      setSelectedDate(null);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSpotting = async () => {
+    if (!selectedDate) return;
+    setIsSaving(true);
+    try {
+      await onSaveDailyLog(selectedDate, { spotting: !(selectedLog?.spotting ?? false) });
+      onSoftLog('Spotting updated.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSymptom = async (symptom: string) => {
+    if (!selectedDate) return;
+    const current = selectedLog?.symptoms ?? [];
+    const next = current.includes(symptom)
+      ? current.filter((item) => item !== symptom)
+      : [...current, symptom];
+    setIsSaving(true);
+    try {
+      await onSaveDailyLog(selectedDate, { symptoms: next });
+      onSoftLog(`${symptom} updated.`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <div className="chart-card calendar-card">
@@ -130,11 +197,19 @@ export default function PredictionCalendar({ cycles, predictions, fertileWindow 
               if (isPredicted) className += ' predicted-day';
               if (isFertile) className += ' fertile-day';
               if (isOvulation) className += ' ovulation-day';
+              if (statuses?.has('spotting')) className += ' spotting-day';
+              if (statuses?.has('logged')) className += ' logged-day';
 
               return (
-                <div key={dateStr} className={className}>
+                <button
+                  type="button"
+                  key={dateStr}
+                  className={className}
+                  onClick={() => setSelectedDate(dateStr)}
+                  aria-label={`Open ${format(d, 'MMMM d')}`}
+                >
                   <span>{format(d, 'd')}</span>
-                </div>
+                </button>
               );
             })}
           </div>
@@ -144,9 +219,42 @@ export default function PredictionCalendar({ cycles, predictions, fertileWindow 
       <div className="calendar-legend">
         <span className="legend-item"><span className="legend-dot period" /> Period</span>
         <span className="legend-item"><span className="legend-dot predicted" /> Predicted</span>
-        <span className="legend-item"><span className="legend-dot fertile" /> Fertile</span>
-        <span className="legend-item"><span className="legend-dot ovulation" /> Ovulation</span>
+        {showFertility && <span className="legend-item"><span className="legend-dot fertile" /> Fertile</span>}
+        {showFertility && <span className="legend-item"><span className="legend-dot ovulation" /> Ovulation</span>}
+        <span className="legend-item"><span className="legend-dot logged" /> Logged</span>
       </div>
+
+      {selectedDate && (
+        <div className="day-sheet" role="dialog" aria-label="Log selected day">
+          <div className="day-sheet-header">
+            <div>
+              <span className="eyebrow">Selected Day</span>
+              <h4>{format(parseISO(selectedDate), 'MMM d, yyyy')}</h4>
+            </div>
+            <button type="button" onClick={() => setSelectedDate(null)}>Close</button>
+          </div>
+          <div className="day-sheet-actions">
+            <button type="button" className="btn btn-primary" onClick={handleDayPeriod} disabled={isSaving}>
+              Mark period day
+            </button>
+            <button type="button" className="btn btn-secondary" onClick={handleSpotting} disabled={isSaving}>
+              {selectedLog?.spotting ? 'Remove spotting' : 'Mark spotting'}
+            </button>
+          </div>
+          <div className="symptom-chip-row compact">
+            {symptomShortcuts.map((symptom) => (
+              <button
+                type="button"
+                key={symptom}
+                className={`symptom-chip ${selectedLog?.symptoms.includes(symptom) ? 'selected' : ''}`}
+                onClick={() => handleSymptom(symptom)}
+              >
+                {symptom}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

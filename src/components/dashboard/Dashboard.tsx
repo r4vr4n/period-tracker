@@ -2,10 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   getCycleHistory,
   deleteCycleEntry,
+  getDailyLogs,
   saveCycleEntry,
+  saveDailyLog,
   saveCompletePeriod,
   updateCycleEntry,
   getUserProfile,
+  updateUserProfile,
   DEFAULT_USUAL_FLOW_DAYS,
   type UserProfile
 } from '../../storage/db';
@@ -20,7 +23,7 @@ import PredictionCalendar from '../charts/PredictionCalendar';
 import CycleHistory from '../history/CycleHistory';
 import Settings from '../settings/Settings';
 import Onboarding from '../onboarding/Onboarding';
-import type { CycleEntry } from '../../types/cycle';
+import type { CycleEntry, DailyLog } from '../../types/cycle';
 import { format } from 'date-fns';
 
 type Tab = 'dashboard' | 'calendar' | 'charts' | 'history' | 'settings';
@@ -29,6 +32,7 @@ type ToastState = { message: string; type: 'success' | 'error' } | null;
 export default function Dashboard() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [cycles, setCycles] = useState<CycleEntry[]>([]);
+  const [dailyLogs, setDailyLogs] = useState<DailyLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [toast, setToast] = useState<ToastState>(null);
@@ -51,8 +55,10 @@ export default function Dashboard() {
         getUserProfile(),
         getCycleHistory()
       ]);
+      const logs = await getDailyLogs();
       setProfile(userProfile);
       setCycles(history);
+      setDailyLogs(logs);
     } catch (err) {
       console.error('Failed to load data:', err);
       showToast('Failed to load data. Please refresh.', 'error');
@@ -69,6 +75,14 @@ export default function Dashboard() {
     await saveCompletePeriod(startDate, endDate);
     await loadData();
     showToast('Period saved on this device.', 'success');
+  };
+
+  const handleDailyLogSave = async (
+    date: string,
+    data: Partial<Pick<DailyLog, 'symptoms' | 'mood' | 'energy' | 'spotting' | 'note'>>
+  ): Promise<void> => {
+    await saveDailyLog(date, data);
+    await loadData();
   };
 
   const handleStartPeriodToday = async (): Promise<void> => {
@@ -110,12 +124,30 @@ export default function Dashboard() {
     }
   };
 
+  const handleCycleUpdate = async (
+    entryId: string,
+    data: Partial<Pick<CycleEntry, 'startDate' | 'endDate'>>
+  ) => {
+    try {
+      await updateCycleEntry(entryId, data);
+      await loadData();
+      showToast('Entry updated.', 'success');
+    } catch {
+      showToast('Failed to update entry.', 'error');
+    }
+  };
+
+  const dismissBackupReminder = async () => {
+    await updateUserProfile({ backupReminderDismissedAt: Date.now() });
+    await loadData();
+  };
+
   const tabs: { key: Tab; label: string; icon: string }[] = [
-    { key: 'dashboard', label: 'Home', icon: '🏠' },
-    { key: 'calendar', label: 'Calendar', icon: '📅' },
-    { key: 'charts', label: 'Charts', icon: '📊' },
-    { key: 'history', label: 'History', icon: '📋' },
-    { key: 'settings', label: 'Settings', icon: '⚙️' },
+    { key: 'dashboard', label: 'Home', icon: 'H' },
+    { key: 'calendar', label: 'Calendar', icon: 'C' },
+    { key: 'charts', label: 'Trends', icon: 'T' },
+    { key: 'history', label: 'History', icon: 'R' },
+    { key: 'settings', label: 'Settings', icon: 'S' },
   ];
 
   if (loading) {
@@ -131,8 +163,20 @@ export default function Dashboard() {
     return <Onboarding onComplete={(p) => setProfile(p)} />;
   }
 
+  const todaysLog = dailyLogs.find((log) => log.date === format(new Date(), 'yyyy-MM-dd')) ?? null;
+  const minimalMode = Boolean(profile.minimalMode);
+  const showFertility = profile.showFertility !== false && !minimalMode;
+  const appTitle = profile.discreetMode ? 'Cycle Notes' : 'Flo Cycle';
+  const layoutClasses = [
+    'app-layout',
+    profile.discreetMode ? 'discreet-mode' : '',
+    profile.reducedMotion ? 'reduced-motion' : '',
+    profile.highContrast ? 'high-contrast' : '',
+    profile.largeText ? 'large-text' : '',
+  ].filter(Boolean).join(' ');
+
   return (
-    <div className="app-layout">
+    <div className={layoutClasses}>
       {/* Global Toast */}
       {toast && (
         <div className={`app-toast ${toast.type}`} role="status" aria-live="polite">
@@ -159,7 +203,7 @@ export default function Dashboard() {
             </svg>
           </div>
           <div className="header-titles">
-            <h2>Flo Cycle</h2>
+            <h2>{appTitle}</h2>
             <span className="user-greeting">Hi, {profile.name}</span>
           </div>
         </div>
@@ -176,13 +220,15 @@ export default function Dashboard() {
               </div>
               <span className="local-save-pill">Saved on this device</span>
             </div>
-            {metrics && <CycleStatus metrics={metrics} />}
+            {metrics && <CycleStatus metrics={metrics} minimalMode={minimalMode} />}
             <QuickLog
               cycles={cycles}
+              dailyLog={todaysLog}
               metrics={metrics}
               usualFlowDays={usualFlowDays}
               onStartPeriodToday={handleStartPeriodToday}
               onEndActivePeriod={handleEndActivePeriod}
+              onSaveDailyLog={handleDailyLogSave}
               onLogCompletePeriod={handlePeriodComplete}
               onSoftLog={(message) => showToast(message, 'success')}
             />
@@ -194,7 +240,18 @@ export default function Dashboard() {
                 </p>
               </div>
             )}
-            {metrics && cycles.length > 0 && <CycleInsights cycles={cycles} metrics={metrics} />}
+            {metrics && cycles.length > 0 && (
+              <CycleInsights cycles={cycles} dailyLogs={dailyLogs} metrics={metrics} />
+            )}
+            {cycles.length >= 3 && !profile.backupReminderDismissedAt && (
+              <div className="backup-nudge">
+                <p>Your history is stored on this device. Export a backup when you want a copy you control.</p>
+                <div>
+                  <button type="button" onClick={() => setActiveTab('settings')}>Backup</button>
+                  <button type="button" onClick={dismissBackupReminder}>Later</button>
+                </div>
+              </div>
+            )}
             {metrics && cycles.length > 0 && <MetricsCards metrics={metrics} />}
           </div>
         )}
@@ -203,22 +260,35 @@ export default function Dashboard() {
           <div className="calendar-view">
             <PredictionCalendar
               cycles={cycles}
+              dailyLogs={dailyLogs}
               predictions={metrics?.predictions ?? []}
-              fertileWindow={metrics?.fertileWindow ?? null}
+              fertileWindow={showFertility ? metrics?.fertileWindow ?? null : null}
+              showFertility={showFertility}
+              onLogPeriod={handlePeriodComplete}
+              onSaveDailyLog={handleDailyLogSave}
+              onSoftLog={(message) => showToast(message, 'success')}
             />
           </div>
         )}
 
-        {activeTab === 'charts' && (
+        {activeTab === 'charts' && !minimalMode && (
           <div className="charts-view">
             <CycleLengthChart cycles={cycles} />
-            <PeriodDurationChart cycles={cycles} />
+            <PeriodDurationChart cycles={cycles} dailyLogs={dailyLogs} />
+          </div>
+        )}
+
+        {activeTab === 'charts' && minimalMode && (
+          <div className="charts-view">
+            <div className="empty-dashboard-hint">
+              <p>Minimal Mode is on. Trends are hidden so the app stays focused on period dates.</p>
+            </div>
           </div>
         )}
 
         {activeTab === 'history' && (
           <div className="history-view">
-            <CycleHistory cycles={cycles} onDelete={handleDelete} />
+            <CycleHistory cycles={cycles} onDelete={handleDelete} onUpdate={handleCycleUpdate} />
           </div>
         )}
 

@@ -3,6 +3,16 @@ import { prepareSyncPayload, type SyncPayload } from './db';
 
 const PEER_PREFIX = 'flo-cycle-';
 
+function isSyncPayload(data: unknown): data is SyncPayload {
+  return Boolean(
+    data &&
+    typeof data === 'object' &&
+    'profile' in data &&
+    'history' in data &&
+    'timestamp' in data
+  );
+}
+
 export class P2PService {
   private peer: Peer | null = null;
   private connection: DataConnection | null = null;
@@ -22,9 +32,9 @@ export class P2PService {
 
       this.peer!.on('connection', (conn) => {
         this.connection = conn;
-        conn.on('data', (data: any) => {
-          if (data && typeof data === 'object' && 'profile' in data) {
-            onData(data as SyncPayload);
+        conn.on('data', (data: unknown) => {
+          if (isSyncPayload(data)) {
+            onData(data);
           }
         });
       });

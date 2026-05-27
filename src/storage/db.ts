@@ -1,9 +1,10 @@
-import type { CycleEntry } from '../types/cycle';
+import type { CycleEntry, DailyLog } from '../types/cycle';
 
 const DB_NAME = 'flo_cycle_db';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const STORE_NAME = 'cycles';
 const PROFILE_STORE = 'profile';
+const DAILY_LOG_STORE = 'dailyLogs';
 export const DEFAULT_USUAL_FLOW_DAYS = 3;
 
 export interface UserProfile {
@@ -11,11 +12,19 @@ export interface UserProfile {
   syncId: string;
   createdAt: number;
   usualFlowDays?: number;
+  minimalMode?: boolean;
+  showFertility?: boolean;
+  discreetMode?: boolean;
+  reducedMotion?: boolean;
+  highContrast?: boolean;
+  largeText?: boolean;
+  backupReminderDismissedAt?: number;
 }
 
 export interface SyncPayload {
   profile: UserProfile;
   history: CycleEntry[];
+  dailyLogs?: DailyLog[];
   timestamp: number;
 }
 
@@ -31,6 +40,11 @@ function openDB(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(PROFILE_STORE)) {
         db.createObjectStore(PROFILE_STORE, { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains(DAILY_LOG_STORE)) {
+        const store = db.createObjectStore(DAILY_LOG_STORE, { keyPath: 'id' });
+        store.createIndex('date', 'date', { unique: true });
+        store.createIndex('updatedAt', 'updatedAt', { unique: false });
       }
     };
     request.onsuccess = () => resolve(request.result);
@@ -140,6 +154,61 @@ export async function updateCycleEntry(
   });
 }
 
+/* ---- Daily Logs ---- */
+
+function normalizeDailyLog(log: Partial<DailyLog> & Pick<DailyLog, 'date'>): DailyLog {
+  const now = Date.now();
+  return {
+    id: log.id ?? log.date,
+    date: log.date,
+    symptoms: log.symptoms ?? [],
+    mood: log.mood ?? null,
+    energy: log.energy ?? null,
+    spotting: log.spotting ?? false,
+    note: log.note ?? '',
+    createdAt: log.createdAt ?? now,
+    updatedAt: now,
+  };
+}
+
+export async function getDailyLogs(): Promise<DailyLog[]> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(DAILY_LOG_STORE, 'readonly');
+    const req = tx.objectStore(DAILY_LOG_STORE).getAll();
+    req.onsuccess = () => {
+      const logs = (req.result as DailyLog[]).sort((a, b) => b.date.localeCompare(a.date));
+      resolve(logs);
+    };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+export async function getDailyLog(date: string): Promise<DailyLog | null> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(DAILY_LOG_STORE, 'readonly');
+    const req = tx.objectStore(DAILY_LOG_STORE).get(date);
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+export async function saveDailyLog(
+  date: string,
+  data: Partial<Pick<DailyLog, 'symptoms' | 'mood' | 'energy' | 'spotting' | 'note'>>
+): Promise<DailyLog> {
+  const existing = await getDailyLog(date);
+  const log = normalizeDailyLog({ ...existing, date, ...data });
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(DAILY_LOG_STORE, 'readwrite');
+    tx.objectStore(DAILY_LOG_STORE).put(log);
+    tx.oncomplete = () => resolve(log);
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
 export async function getCycleHistory(): Promise<CycleEntry[]> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
@@ -170,10 +239,11 @@ export async function deleteCycleEntry(entryId: string): Promise<void> {
 export async function prepareSyncPayload(): Promise<SyncPayload> {
   const profile = await getUserProfile();
   if (!profile) throw new Error('No profile to sync');
-  const history = await getCycleHistory();
+  const [history, dailyLogs] = await Promise.all([getCycleHistory(), getDailyLogs()]);
   return {
     profile,
     history,
+    dailyLogs,
     timestamp: Date.now(),
   };
 }
@@ -181,7 +251,7 @@ export async function prepareSyncPayload(): Promise<SyncPayload> {
 export async function applySyncPayload(payload: SyncPayload): Promise<void> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
-    const tx = db.transaction([STORE_NAME, PROFILE_STORE], 'readwrite');
+    const tx = db.transaction([STORE_NAME, PROFILE_STORE, DAILY_LOG_STORE], 'readwrite');
 
     // Save profile
     tx.objectStore(PROFILE_STORE).put({ ...payload.profile, id: 'user' });
@@ -193,6 +263,12 @@ export async function applySyncPayload(payload: SyncPayload): Promise<void> {
       store.put(entry);
     }
 
+    const dailyStore = tx.objectStore(DAILY_LOG_STORE);
+    dailyStore.clear();
+    for (const log of payload.dailyLogs ?? []) {
+      dailyStore.put(log);
+    }
+
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
@@ -201,22 +277,35 @@ export async function applySyncPayload(payload: SyncPayload): Promise<void> {
 /* ---- Export / Import ---- */
 
 export async function exportData(): Promise<string> {
-  const entries = await getCycleHistory();
-  return JSON.stringify(entries, null, 2);
+  const [profile, entries, dailyLogs] = await Promise.all([
+    getUserProfile(),
+    getCycleHistory(),
+    getDailyLogs(),
+  ]);
+  return JSON.stringify({ profile, history: entries, dailyLogs, exportedAt: Date.now() }, null, 2);
 }
 
 export async function importData(json: string): Promise<number> {
-  const entries = JSON.parse(json) as CycleEntry[];
+  const parsed = JSON.parse(json) as CycleEntry[] | Partial<SyncPayload>;
+  const entries = Array.isArray(parsed) ? parsed : parsed.history ?? [];
+  const dailyLogs = Array.isArray(parsed) ? [] : parsed.dailyLogs ?? [];
   if (!Array.isArray(entries)) throw new Error('Invalid format: expected an array');
   const db = await openDB();
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const tx = db.transaction([STORE_NAME, DAILY_LOG_STORE], 'readwrite');
     const store = tx.objectStore(STORE_NAME);
     for (const entry of entries) {
       if (!entry.id || !entry.startDate) continue;
       store.put(entry);
     }
-    tx.oncomplete = () => resolve(entries.length);
+
+    const dailyStore = tx.objectStore(DAILY_LOG_STORE);
+    for (const log of dailyLogs) {
+      if (!log.date) continue;
+      dailyStore.put(normalizeDailyLog(log));
+    }
+
+    tx.oncomplete = () => resolve(entries.length + dailyLogs.length);
     tx.onerror = () => reject(tx.error);
   });
 }
@@ -224,8 +313,9 @@ export async function importData(json: string): Promise<number> {
 export async function clearAllData(): Promise<void> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const tx = db.transaction([STORE_NAME, DAILY_LOG_STORE], 'readwrite');
     tx.objectStore(STORE_NAME).clear();
+    tx.objectStore(DAILY_LOG_STORE).clear();
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });

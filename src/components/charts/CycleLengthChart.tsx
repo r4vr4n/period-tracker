@@ -39,6 +39,8 @@ export default function CycleLengthChart({ cycles }: Props) {
   }
 
   const average = data.length > 0 ? Math.round(data.reduce((s, d) => s + d.length, 0) / data.length) : 28;
+  const min = data.length > 0 ? Math.min(...data.map((d) => d.length)) : 0;
+  const max = data.length > 0 ? Math.max(...data.map((d) => d.length)) : 0;
 
   if (data.length === 0) {
     return (
@@ -54,6 +56,9 @@ export default function CycleLengthChart({ cycles }: Props) {
   return (
     <div className="chart-card">
       <h3 className="card-title">Cycle Length Trend</h3>
+      <p className="chart-summary">
+        Your recent cycles average {average} days and vary by {max - min} day{max - min === 1 ? '' : 's'}.
+      </p>
       <div className="chart-container">
         <ResponsiveContainer width="100%" height={280}>
           <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
@@ -83,7 +88,7 @@ export default function CycleLengthChart({ cycles }: Props) {
                 borderRadius: '12px',
                 color: '#fff',
               }}
-              formatter={(value: any) => [`${value} days`, 'Cycle Length']}
+              formatter={(value) => [`${value ?? '—'} days`, 'Cycle Length']}
             />
             <ReferenceLine
               y={average}

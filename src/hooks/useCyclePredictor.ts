@@ -49,7 +49,8 @@ export function useCyclePredictor(cycles: CycleEntry[], usualFlowDays = DEFAULT_
 
   useEffect(() => {
     if (cycles.length > 0) {
-      calculate();
+      const timer = window.setTimeout(calculate, 0);
+      return () => window.clearTimeout(timer);
     }
   }, [cycles, calculate]);
 

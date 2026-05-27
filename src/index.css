@@ -59,6 +59,27 @@ body {
   overflow-x: hidden;
 }
 
+.reduced-motion *,
+.reduced-motion *::before,
+.reduced-motion *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
+.high-contrast {
+  --text-secondary: rgba(255, 255, 255, 0.82);
+  --text-muted: rgba(255, 255, 255, 0.62);
+  --bg-card: rgba(20, 20, 28, 0.92);
+}
+
+.large-text {
+  font-size: 18px;
+}
+
+.discreet-mode .header-logo {
+  display: none;
+}
+
 #root {
   min-height: 100dvh;
 }
@@ -722,6 +743,18 @@ a {
   line-height: 1.5;
 }
 
+.prediction-details {
+  margin-top: 10px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.prediction-details summary {
+  color: var(--text-primary);
+  cursor: pointer;
+  font-weight: 700;
+}
+
 /* ============ Quick Log ============ */
 .complete-period-inputs {
   display: grid;
@@ -853,6 +886,10 @@ a {
   margin-bottom: 16px;
 }
 
+.symptom-chip-row.compact {
+  margin-bottom: 0;
+}
+
 .symptom-chip {
   padding: 9px 12px;
   border-radius: 999px;
@@ -867,6 +904,28 @@ a {
   background: rgba(78, 205, 196, 0.14);
   border-color: rgba(78, 205, 196, 0.35);
   color: var(--text-primary);
+}
+
+.daily-context-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.mini-label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.energy-control input {
+  width: 100%;
+  accent-color: var(--accent-teal);
 }
 
 .details-toggle {
@@ -961,6 +1020,60 @@ a {
   line-height: 1.5;
 }
 
+.journal-box {
+  margin-top: 16px;
+}
+
+.journal-box label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.journal-box textarea {
+  width: 100%;
+  resize: vertical;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  font-family: inherit;
+  outline: none;
+}
+
+.backup-nudge {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid rgba(78, 205, 196, 0.22);
+  border-radius: var(--radius-lg);
+  background: rgba(78, 205, 196, 0.08);
+}
+
+.backup-nudge p {
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.backup-nudge div {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.backup-nudge button {
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
 /* ============ Metrics Cards ============ */
 .metrics-cards {
   display: grid;
@@ -1043,6 +1156,13 @@ a {
   min-height: 200px;
   color: var(--text-muted);
   font-size: 14px;
+}
+
+.chart-summary {
+  margin: -4px 0 16px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 /* ============ Calendar ============ */
@@ -1151,6 +1271,17 @@ a {
   box-shadow: 0 0 8px rgba(255, 230, 109, 0.2);
 }
 
+.cal-day.spotting-day::after,
+.cal-day.logged-day::after {
+  content: '';
+  position: absolute;
+  bottom: 5px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent-teal);
+}
+
 .calendar-legend {
   display: flex;
   flex-wrap: wrap;
@@ -1188,6 +1319,41 @@ a {
 
 .legend-dot.ovulation {
   background: rgba(255, 230, 109, 0.5);
+}
+
+.legend-dot.logged {
+  background: var(--accent-teal);
+}
+
+.day-sheet {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.day-sheet-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.day-sheet-header h4 {
+  font-size: 18px;
+}
+
+.day-sheet-header button {
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+
+.day-sheet-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 12px;
 }
 
 /* ============ History ============ */
@@ -1273,6 +1439,29 @@ a {
   color: var(--accent-pink);
   font-weight: 600;
   flex-shrink: 0;
+}
+
+.history-row-actions,
+.history-edit-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.history-edit-fields {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.history-edit-fields input {
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  color-scheme: dark;
 }
 
 /* ============ Bottom Navigation ============ */
@@ -1368,6 +1557,28 @@ a {
 .settings-description.small {
   font-size: 13px;
   margin-bottom: 12px;
+}
+
+.toggle-list {
+  display: grid;
+  gap: 12px;
+}
+
+.toggle-row,
+.onboarding-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.toggle-row input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--accent-teal);
 }
 
 .flow-setting-row {
@@ -1617,6 +1828,15 @@ a {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.onboarding-options {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .onboarding-note {

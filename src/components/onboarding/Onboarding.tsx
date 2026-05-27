@@ -12,6 +12,9 @@ interface Props {
 
 export default function Onboarding({ onComplete }: Props) {
   const [name, setName] = useState("");
+  const [usualFlowDays, setUsualFlowDays] = useState(DEFAULT_USUAL_FLOW_DAYS);
+  const [minimalMode, setMinimalMode] = useState(false);
+  const [showFertility, setShowFertility] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -29,7 +32,13 @@ export default function Onboarding({ onComplete }: Props) {
         name: name.trim(),
         syncId: generateSyncCode(),
         createdAt: Date.now(),
-        usualFlowDays: DEFAULT_USUAL_FLOW_DAYS,
+        usualFlowDays,
+        minimalMode,
+        showFertility: minimalMode ? false : showFertility,
+        discreetMode: false,
+        reducedMotion: false,
+        highContrast: false,
+        largeText: false,
       };
       await setUserProfile(profile);
       onComplete(profile);
@@ -89,6 +98,49 @@ export default function Onboarding({ onComplete }: Props) {
               required
               disabled={isSubmitting}
             />
+          </div>
+          <div className="onboarding-options">
+            <label className="onboarding-stepper">
+              <span>Usual flow length</span>
+              <div className="stepper-control">
+                <button
+                  type="button"
+                  onClick={() => setUsualFlowDays((days) => Math.max(1, days - 1))}
+                >
+                  -
+                </button>
+                <input
+                  type="number"
+                  min="1"
+                  max="10"
+                  value={usualFlowDays}
+                  onChange={(e) => setUsualFlowDays(Math.min(10, Math.max(1, Number(e.target.value))))}
+                />
+                <button
+                  type="button"
+                  onClick={() => setUsualFlowDays((days) => Math.min(10, days + 1))}
+                >
+                  +
+                </button>
+              </div>
+            </label>
+            <label className="toggle-row">
+              <span>Minimal Mode</span>
+              <input
+                type="checkbox"
+                checked={minimalMode}
+                onChange={(e) => setMinimalMode(e.target.checked)}
+              />
+            </label>
+            <label className="toggle-row">
+              <span>Show fertility estimates</span>
+              <input
+                type="checkbox"
+                checked={showFertility && !minimalMode}
+                disabled={minimalMode}
+                onChange={(e) => setShowFertility(e.target.checked)}
+              />
+            </label>
           </div>
           <button
             type="submit"

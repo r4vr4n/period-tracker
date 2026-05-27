@@ -1,12 +1,13 @@
 import { differenceInCalendarDays } from 'date-fns';
-import type { CycleEntry, CycleMetrics } from '../../types/cycle';
+import type { CycleEntry, CycleMetrics, DailyLog } from '../../types/cycle';
 
 interface Props {
   cycles: CycleEntry[];
+  dailyLogs: DailyLog[];
   metrics: CycleMetrics;
 }
 
-export default function CycleInsights({ cycles, metrics }: Props) {
+export default function CycleInsights({ cycles, dailyLogs, metrics }: Props) {
   const sorted = [...cycles].sort(
     (a, b) =>
       new Date(a.startDate + 'T00:00:00').getTime() -
@@ -33,6 +34,22 @@ export default function CycleInsights({ cycles, metrics }: Props) {
 
   if (metrics.currentPhase === 'luteal') {
     notes.push('This phase is a useful time to notice energy, sleep, cravings, or mood changes.');
+  }
+
+  const symptomCounts = dailyLogs.reduce<Record<string, number>>((acc, log) => {
+    for (const symptom of log.symptoms) {
+      acc[symptom] = (acc[symptom] ?? 0) + 1;
+    }
+    return acc;
+  }, {});
+  const topSymptom = Object.entries(symptomCounts).sort((a, b) => b[1] - a[1])[0];
+  if (topSymptom && topSymptom[1] >= 2) {
+    notes.push(`${topSymptom[0]} is your most repeated recent symptom.`);
+  }
+
+  const lowEnergyLogs = dailyLogs.filter((log) => log.energy !== null && log.energy <= 2).length;
+  if (lowEnergyLogs >= 2) {
+    notes.push('Low-energy days have appeared more than once. Tracking sleep or stress may help spot a pattern.');
   }
 
   return (

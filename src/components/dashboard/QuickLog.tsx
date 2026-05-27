@@ -1,54 +1,70 @@
 import { useEffect, useState } from 'react';
 import { addDays, format, isAfter, parseISO, subDays } from 'date-fns';
-import type { CycleEntry, CycleMetrics } from '../../types/cycle';
+import type { CycleEntry, CycleMetrics, DailyLog } from '../../types/cycle';
 
 interface Props {
   cycles: CycleEntry[];
+  dailyLog: DailyLog | null;
   metrics: CycleMetrics | null;
   usualFlowDays: number;
   onStartPeriodToday: () => Promise<void>;
   onEndActivePeriod: (endDate: string) => Promise<void>;
+  onSaveDailyLog: (
+    date: string,
+    data: Partial<Pick<DailyLog, 'symptoms' | 'mood' | 'energy' | 'spotting' | 'note'>>
+  ) => Promise<void>;
   onLogCompletePeriod: (startDate: string, endDate: string) => Promise<void>;
   onSoftLog: (message: string) => void;
 }
 
 export default function QuickLog({
   cycles,
+  dailyLog,
   metrics,
   usualFlowDays,
   onStartPeriodToday,
   onEndActivePeriod,
+  onSaveDailyLog,
   onLogCompletePeriod,
   onSoftLog,
 }: Props) {
   const today = format(new Date(), 'yyyy-MM-dd');
   const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd');
   const activePeriod = cycles.find((cycle) => !cycle.endDate);
-  const dailyLogKey = `flo-cycle-daily-log-${today}`;
-  const savedDailyLog = (() => {
-    try {
-      const raw = localStorage.getItem(dailyLogKey);
-      return raw ? JSON.parse(raw) as { symptoms?: string[]; spotting?: boolean } : {};
-    } catch {
-      return {};
-    }
-  })();
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(today);
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>(savedDailyLog.symptoms ?? []);
-  const [spottingSelected, setSpottingSelected] = useState(Boolean(savedDailyLog.spotting));
+  const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>(dailyLog?.symptoms ?? []);
+  const [spottingSelected, setSpottingSelected] = useState(Boolean(dailyLog?.spotting));
+  const [mood, setMood] = useState(dailyLog?.mood ?? '');
+  const [energy, setEnergy] = useState(dailyLog?.energy ?? 3);
+  const [note, setNote] = useState(dailyLog?.note ?? '');
 
   const symptomChips = ['Cramps', 'Tired', 'Cravings', 'Irritable', 'Headache', 'Tender breasts'];
+  const moodChips = ['Calm', 'Low', 'Anxious', 'Irritable', 'Focused'];
 
   useEffect(() => {
-    localStorage.setItem(
-      dailyLogKey,
-      JSON.stringify({ symptoms: selectedSymptoms, spotting: spottingSelected })
-    );
-  }, [dailyLogKey, selectedSymptoms, spottingSelected]);
+    setSelectedSymptoms(dailyLog?.symptoms ?? []);
+    setSpottingSelected(Boolean(dailyLog?.spotting));
+    setMood(dailyLog?.mood ?? '');
+    setEnergy(dailyLog?.energy ?? 3);
+    setNote(dailyLog?.note ?? '');
+  }, [dailyLog]);
+
+  const saveTodayLog = async (
+    data: Partial<Pick<DailyLog, 'symptoms' | 'mood' | 'energy' | 'spotting' | 'note'>>
+  ) => {
+    await onSaveDailyLog(today, {
+      symptoms: selectedSymptoms,
+      mood: mood || null,
+      energy,
+      spotting: spottingSelected,
+      note,
+      ...data,
+    });
+  };
 
   const handleStartChange = (val: string) => {
     setStartDate(val);
@@ -70,24 +86,47 @@ export default function QuickLog({
     }
   };
 
-  const toggleSymptom = (symptom: string) => {
+  const toggleSymptom = async (symptom: string) => {
+    let nextSymptoms: string[] = [];
     setSelectedSymptoms((current) => {
       const next = current.includes(symptom)
         ? current.filter((item) => item !== symptom)
         : [...current, symptom];
+      nextSymptoms = next;
       if (!current.includes(symptom)) {
         onSoftLog(`${symptom} saved for today.`);
       }
       return next;
     });
+    await saveTodayLog({ symptoms: nextSymptoms });
   };
 
-  const toggleSpotting = () => {
+  const toggleSpotting = async () => {
+    let nextSpotting = false;
     setSpottingSelected((selected) => {
       const next = !selected;
+      nextSpotting = next;
       if (next) onSoftLog('Spotting saved for today.');
       return next;
     });
+    await saveTodayLog({ spotting: nextSpotting });
+  };
+
+  const updateMood = async (nextMood: string) => {
+    const value = mood === nextMood ? '' : nextMood;
+    setMood(value);
+    await saveTodayLog({ mood: value || null });
+    if (value) onSoftLog(`${value} mood saved for today.`);
+  };
+
+  const updateEnergy = async (nextEnergy: number) => {
+    setEnergy(nextEnergy);
+    await saveTodayLog({ energy: nextEnergy });
+  };
+
+  const saveNote = async () => {
+    await saveTodayLog({ note });
+    onSoftLog('Journal note saved for today.');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -182,6 +221,34 @@ export default function QuickLog({
         ))}
       </div>
 
+      <div className="daily-context-grid">
+        <div>
+          <span className="mini-label">Mood</span>
+          <div className="symptom-chip-row compact">
+            {moodChips.map((item) => (
+              <button
+                type="button"
+                key={item}
+                className={`symptom-chip ${mood === item ? 'selected' : ''}`}
+                onClick={() => updateMood(item)}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+        </div>
+        <label className="energy-control">
+          <span className="mini-label">Energy</span>
+          <input
+            type="range"
+            min="1"
+            max="5"
+            value={energy}
+            onChange={(e) => updateEnergy(Number(e.target.value))}
+          />
+        </label>
+      </div>
+
       <button
         type="button"
         className="details-toggle"
@@ -229,6 +296,18 @@ export default function QuickLog({
           {isSubmitting ? 'Saving...' : 'Save dates'}
         </button>
       </form>
+
+      <div className="journal-box">
+        <label htmlFor="daily-note">Anything to remember about today?</label>
+        <textarea
+          id="daily-note"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          onBlur={saveNote}
+          placeholder="Optional note"
+          rows={2}
+        />
+      </div>
     </div>
   );
 }
